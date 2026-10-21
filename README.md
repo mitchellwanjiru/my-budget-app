@@ -48,15 +48,3 @@ A private, 100% offline personal budgeting application built with React, TypeScr
 
 ---
 
-## 🚀 Running the App
-
-```bash
-# Start development server
-npm run dev
-
-# Or build production static files
-npm run build
-npm run preview
-```
-
-Open [http://localhost:5173](http://localhost:5173) in your browser.
