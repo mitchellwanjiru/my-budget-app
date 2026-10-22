@@ -38,14 +38,14 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         IntentFilter filter = new IntentFilter("com.mybudget.app.MPESA_SMS_RECEIVED");
         ContextCompat.registerReceiver(this, mpesaReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         super.onPause();
         try {
             unregisterReceiver(mpesaReceiver);
