@@ -41,11 +41,7 @@ public class MainActivity extends BridgeActivity {
     protected void onResume() {
         super.onResume();
         IntentFilter filter = new IntentFilter("com.mybudget.app.MPESA_SMS_RECEIVED");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(mpesaReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(mpesaReceiver, filter);
-        }
+        ContextCompat.registerReceiver(this, mpesaReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
