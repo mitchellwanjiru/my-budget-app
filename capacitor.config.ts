@@ -5,7 +5,9 @@ const config: CapacitorConfig = {
   appName: 'My Budget',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    url: 'https://my-budget-app-sandy.vercel.app',
+    androidScheme: 'https',
+    cleartext: false
   }
 };
 
