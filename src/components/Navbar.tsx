@@ -33,9 +33,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-pink-100 shadow-sm">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
+    <header 
+      className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-pink-100 shadow-xs transition-all"
+      style={{
+        paddingTop: 'max(env(safe-area-inset-top, 0px), 14px)'
+      }}
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-2.5 pt-1">
+        <div className="flex items-center justify-between h-14">
           
           {/* Logo & Brand */}
           <div 
@@ -99,7 +104,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-pink-100 px-3 py-2 shadow-lg">
+      <div 
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-pink-100 px-3 py-2 shadow-lg"
+        style={{
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 10px)'
+        }}
+      >
         <div className="flex justify-around items-center">
           {navItems.map((item) => {
             const Icon = item.icon;

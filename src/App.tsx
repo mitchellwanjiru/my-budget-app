@@ -24,8 +24,10 @@ import { PhoneInstallModal } from './components/Phone/PhoneInstallModal';
 import { BudgetsAndGoals } from './components/Budgets/BudgetsAndGoals';
 import { FinancialInsights } from './components/Insights/FinancialInsights';
 import { DataManagement } from './components/Settings/DataManagement';
+import { WelcomeScreen } from './components/Welcome/WelcomeScreen';
 
 export const App: React.FC = () => {
+  const [showWelcome, setShowWelcome] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -266,6 +268,11 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#fff5f7] text-slate-800 pb-20 md:pb-12">
+      {/* Welcome Splash Screen */}
+      {showWelcome && (
+        <WelcomeScreen onDismiss={() => setShowWelcome(false)} />
+      )}
+
       {/* Top Navigation */}
       <Navbar
         activeTab={activeTab}
