@@ -41,7 +41,18 @@ jobs:
 
     - name: Build Debug APK
       working-directory: ./android
-      run: ./gradlew assembleDebug --no-daemon --stacktrace
+      run: |
+        ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee ../gradle_build.log
+
+    - name: Report Build Logs
+      if: always()
+      run: |
+        if [ -f gradle_build.log ]; then
+          echo "## Gradle Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          tail -n 80 gradle_build.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
