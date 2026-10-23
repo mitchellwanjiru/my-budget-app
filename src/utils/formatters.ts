@@ -1,9 +1,10 @@
 export function formatCurrency(amount: number, currency: string = 'Ksh'): string {
+  const isNegative = amount < 0;
   const formatted = Math.abs(amount).toLocaleString('en-KE', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
-  return `${currency} ${formatted}`;
+  return `${isNegative ? '-' : ''}${currency} ${formatted}`;
 }
 
 export function formatDate(dateStr: string): string {

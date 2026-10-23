@@ -6,7 +6,8 @@ import {
   Edit2, 
   Trash2, 
   PlusCircle,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 import { Category, SavingsGoal, Transaction } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -15,6 +16,8 @@ interface BudgetsAndGoalsProps {
   categories: Category[];
   transactions: Transaction[];
   savingsGoals: SavingsGoal[];
+  overallBudget?: number;
+  onUpdateOverallBudget?: (amount: number) => void;
   onSaveCategory: (cat: Category) => void;
   onSaveGoal: (goal: SavingsGoal) => void;
   onDeleteGoal: (id: string) => void;
@@ -25,6 +28,8 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   categories,
   transactions,
   savingsGoals,
+  overallBudget = 0,
+  onUpdateOverallBudget,
   onSaveCategory,
   onSaveGoal,
   onDeleteGoal,
@@ -33,6 +38,8 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   const [activeSection, setActiveSection] = useState<'budgets' | 'goals'>('budgets');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [newBudgetVal, setNewBudgetVal] = useState('');
+  const [isEditingSalary, setIsEditingSalary] = useState(false);
+  const [salaryInput, setSalaryInput] = useState('');
 
   // New Goal modal
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
@@ -63,6 +70,31 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   const totalSpent = expenseCategories.reduce((sum, c) => sum + (categorySpendMap.get(c.id) || 0), 0);
   const remainingBudget = Math.max(0, totalBudgeted - totalSpent);
 
+  const effectiveOverallBudget = overallBudget > 0 ? overallBudget : totalBudgeted;
+
+  // 50/30/20 Groupings
+  const needsIds = new Set(['cat_groceries', 'cat_utilities', 'cat_transport', 'cat_health', 'cat_family']);
+  const wantsIds = new Set(['cat_dining', 'cat_entertainment', 'cat_shopping', 'cat_hair', 'cat_airtime', 'cat_general']);
+  const savingsIds = new Set(['cat_savings']);
+
+  const needsAllocated = expenseCategories
+    .filter(c => needsIds.has(c.id))
+    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+
+  const wantsAllocated = expenseCategories
+    .filter(c => wantsIds.has(c.id))
+    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+
+  const savingsAllocated = expenseCategories
+    .filter(c => savingsIds.has(c.id))
+    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+
+  const targetNeeds = effectiveOverallBudget > 0 ? Math.round(effectiveOverallBudget * 0.5) : 0;
+  const targetWants = effectiveOverallBudget > 0 ? Math.round(effectiveOverallBudget * 0.3) : 0;
+  const targetSavings = effectiveOverallBudget > 0 ? Math.round(effectiveOverallBudget * 0.2) : 0;
+
+  const unallocated = effectiveOverallBudget - totalBudgeted;
+
   const handleStartEdit = (cat: Category) => {
     setEditingCategory(cat);
     setNewBudgetVal(cat.budgetMonthly?.toString() || '0');
@@ -77,6 +109,50 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
       budgetMonthly: isNaN(budgetVal) ? 0 : Math.max(0, budgetVal)
     });
     setEditingCategory(null);
+  };
+
+  const handleSaveSalary = (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseFloat(salaryInput);
+    if (!isNaN(val) && val >= 0) {
+      if (onUpdateOverallBudget) {
+        onUpdateOverallBudget(val);
+      }
+      setIsEditingSalary(false);
+    }
+  };
+
+  const handleAutoDistribute503020 = () => {
+    if (effectiveOverallBudget <= 0) return;
+    const isConfirmed = window.confirm(
+      `Auto-calculate 50/30/20 category limits based on Ksh ${effectiveOverallBudget.toLocaleString()}? You can still edit any category limit individually.`
+    );
+    if (!isConfirmed) return;
+
+    // 50% Needs: Groceries 25%, Utilities 15%, Transport 10%
+    // 30% Wants: Dining 7%, Shopping 6%, Hair & Beauty 5%, Fun 4%, Airtime 4%, Other 4%
+    // 20% Savings: Savings & Investments 20%
+    const percentages: Record<string, number> = {
+      cat_groceries: 0.25,
+      cat_utilities: 0.15,
+      cat_transport: 0.10,
+      cat_dining: 0.07,
+      cat_shopping: 0.06,
+      cat_hair: 0.05,
+      cat_entertainment: 0.04,
+      cat_airtime: 0.04,
+      cat_general: 0.04,
+      cat_savings: 0.20
+    };
+
+    for (const cat of expenseCategories) {
+      const pct = percentages[cat.id] || 0;
+      const calculated = Math.round(effectiveOverallBudget * pct);
+      onSaveCategory({
+        ...cat,
+        budgetMonthly: calculated
+      });
+    }
   };
 
   const handleCreateGoal = (e: React.FormEvent) => {
@@ -166,6 +242,180 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Remaining Buffer</span>
               <h3 className="text-2xl font-black text-emerald-600 mt-2">{formatCurrency(remainingBudget)}</h3>
               <p className="text-xs text-slate-400 mt-1">Safe to spend this month</p>
+            </div>
+          </div>
+
+          {/* 50/30/20 Salary & Budget Allocation Planner */}
+          <div className="bg-white border border-pink-100 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-2xl bg-pink-100 text-pink-600">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">50/30/20 Budget Allocation</h3>
+                  <p className="text-xs text-slate-400">
+                    Plan how your salary or monthly funds divide into Needs, Wants, and Savings
+                  </p>
+                </div>
+              </div>
+
+              {/* Total Planned Salary/Budget pill / edit */}
+              <div className="flex items-center space-x-2">
+                {isEditingSalary ? (
+                  <form onSubmit={handleSaveSalary} className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      value={salaryInput}
+                      onChange={(e) => setSalaryInput(e.target.value)}
+                      placeholder="e.g. 30000"
+                      className="w-28 sm:w-36 bg-pink-50/50 border border-pink-300 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="px-2.5 py-1 rounded-xl bg-pink-500 text-white text-xs font-bold"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingSalary(false)}
+                      className="text-xs font-bold text-slate-400 hover:text-slate-600 px-1"
+                    >
+                      ✕
+                    </button>
+                  </form>
+                ) : (
+                  <div className="flex items-center space-x-2 bg-pink-50/80 px-3 py-1.5 rounded-2xl border border-pink-200">
+                    <span className="text-xs font-bold text-slate-600">Total Budget:</span>
+                    <span className="text-xs font-black text-pink-700">
+                      {formatCurrency(effectiveOverallBudget)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setSalaryInput(effectiveOverallBudget > 0 ? effectiveOverallBudget.toString() : '');
+                        setIsEditingSalary(true);
+                      }}
+                      className="p-1 text-pink-500 hover:text-pink-700 transition"
+                      title="Edit Total Monthly Budget"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 50/30/20 Breakdown Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              {/* Needs 50% */}
+              <div className="p-3.5 rounded-2xl bg-pink-50/30 border border-pink-100 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">1. Needs (50%)</span>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    Target: {formatCurrency(targetNeeds)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-black text-slate-900">
+                    {formatCurrency(needsAllocated)}
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-400">allocated</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-pink-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      needsAllocated > targetNeeds && targetNeeds > 0 ? 'bg-rose-500' : 'bg-pink-500'
+                    }`}
+                    style={{ width: `${targetNeeds > 0 ? Math.min(100, Math.round((needsAllocated / targetNeeds) * 100)) : 0}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Food, Utilities, Transport, Health, Family
+                </p>
+              </div>
+
+              {/* Wants 30% */}
+              <div className="p-3.5 rounded-2xl bg-pink-50/30 border border-pink-100 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-pink-700">2. Wants (30%)</span>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    Target: {formatCurrency(targetWants)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-black text-pink-600">
+                    {formatCurrency(wantsAllocated)}
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-400">allocated</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-pink-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      wantsAllocated > targetWants && targetWants > 0 ? 'bg-rose-500' : 'bg-pink-500'
+                    }`}
+                    style={{ width: `${targetWants > 0 ? Math.min(100, Math.round((wantsAllocated / targetWants) * 100)) : 0}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Dining, Shopping, Hair & Beauty, Fun, Airtime
+                </p>
+              </div>
+
+              {/* Savings 20% */}
+              <div className="p-3.5 rounded-2xl bg-pink-50/30 border border-pink-100 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-700">3. Savings (20%)</span>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    Target: {formatCurrency(targetSavings)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-black text-emerald-600">
+                    {formatCurrency(savingsAllocated)}
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-400">allocated</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-pink-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${targetSavings > 0 ? Math.min(100, Math.round((savingsAllocated / targetSavings) * 100)) : 0}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Emergency fund, Investments & Goals
+                </p>
+              </div>
+            </div>
+
+            {/* Allocation Status Notice */}
+            <div className={`p-3 rounded-2xl text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+              unallocated === 0
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : unallocated > 0
+                ? 'bg-pink-50 text-pink-800 border border-pink-200'
+                : 'bg-rose-50 text-rose-800 border border-rose-200'
+            }`}>
+              <span>
+                {unallocated === 0 && '✅ 100% of your budget is allocated across categories.'}
+                {unallocated > 0 && `💡 ${formatCurrency(unallocated)} unallocated. You can increase category limits below.`}
+                {unallocated < 0 && `⚠️ You've allocated ${formatCurrency(Math.abs(unallocated))} more than your monthly budget target.`}
+              </span>
+
+              {/* Auto-fill button */}
+              {effectiveOverallBudget > 0 && (
+                <button
+                  type="button"
+                  onClick={handleAutoDistribute503020}
+                  className="px-2.5 py-1.5 rounded-xl bg-white text-pink-700 border border-pink-200 text-[11px] font-bold hover:bg-pink-50 transition shadow-xs flex-shrink-0 self-start sm:self-auto"
+                  title="Automatically suggest category limits based on 50/30/20"
+                >
+                  Auto-fill 50/30/20 Limits
+                </button>
+              )}
             </div>
           </div>
 

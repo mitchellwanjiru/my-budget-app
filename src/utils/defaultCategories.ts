@@ -56,6 +56,15 @@ export const DEFAULT_CATEGORIES: Category[] = [
     isDefault: true,
   },
   {
+    id: 'cat_hair',
+    name: 'Hair & Beauty',
+    icon: 'Sparkles',
+    color: '#f472b6', // soft pink
+    type: 'expense',
+    budgetMonthly: 0,
+    isDefault: true,
+  },
+  {
     id: 'cat_health',
     name: 'Health & Pharmacy',
     icon: 'HeartPulse',
@@ -184,6 +193,16 @@ export const DEFAULT_RULES: CategorizationRule[] = [
   // Shopping
   { id: 'rule_50', keyword: 'JUMIA', categoryId: 'cat_shopping', matchField: 'party' },
   { id: 'rule_51', keyword: 'KILIMALL', categoryId: 'cat_shopping', matchField: 'party' },
+
+  // Hair & Beauty
+  { id: 'rule_hair_1', keyword: 'SALON', categoryId: 'cat_hair', matchField: 'party' },
+  { id: 'rule_hair_2', keyword: 'HAIR', categoryId: 'cat_hair', matchField: 'party' },
+  { id: 'rule_hair_3', keyword: 'BARBER', categoryId: 'cat_hair', matchField: 'party' },
+  { id: 'rule_hair_4', keyword: 'KINYOZI', categoryId: 'cat_hair', matchField: 'party' },
+  { id: 'rule_hair_5', keyword: 'BEAUTY', categoryId: 'cat_hair', matchField: 'party' },
+  { id: 'rule_hair_6', keyword: 'BRAIDS', categoryId: 'cat_hair', matchField: 'party' },
+  { id: 'rule_hair_7', keyword: 'SPA', categoryId: 'cat_hair', matchField: 'party' },
+  { id: 'rule_hair_8', keyword: 'NAILS', categoryId: 'cat_hair', matchField: 'party' },
 
   // Entertainment
   { id: 'rule_52', keyword: 'NETFLIX', categoryId: 'cat_entertainment', matchField: 'party' },

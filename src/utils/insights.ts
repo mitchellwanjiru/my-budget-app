@@ -3,7 +3,8 @@ import { Transaction, Category, BudgetHealthReport } from '../types';
 export function calculateFinancialHealth(
   transactions: Transaction[],
   categories: Category[],
-  currentMonthStr?: string // e.g. "2026-10"
+  currentMonthStr?: string, // e.g. "2026-10"
+  baselineBudget: number = 0
 ): BudgetHealthReport {
   const selectedMonth = currentMonthStr || new Date().toISOString().slice(0, 7);
 
@@ -30,8 +31,10 @@ export function calculateFinancialHealth(
     }
   }
 
-  const netSavings = totalIncome - totalExpense;
-  const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
+  // If no explicit income is recorded, use the user's active budget/salary as the baseline funds
+  const effectiveIncome = totalIncome > 0 ? totalIncome : (baselineBudget > 0 ? baselineBudget : 0);
+  const netSavings = effectiveIncome - totalExpense;
+  const savingsRate = effectiveIncome > 0 ? Math.max(0, Math.round((netSavings / effectiveIncome) * 100)) : 0;
 
   // Category breakdown
   const categoryMap = new Map(categories.map(c => [c.id, c]));
@@ -111,7 +114,7 @@ export function calculateFinancialHealth(
 
   // 3. Needs vs Wants Analysis (50/30/20)
   const needsIds = new Set(['cat_groceries', 'cat_utilities', 'cat_transport', 'cat_health', 'cat_family']);
-  const wantsIds = new Set(['cat_dining', 'cat_entertainment', 'cat_shopping', 'cat_airtime']);
+  const wantsIds = new Set(['cat_dining', 'cat_entertainment', 'cat_shopping', 'cat_hair', 'cat_airtime', 'cat_general']);
 
   let needsSpend = 0;
   let wantsSpend = 0;
@@ -158,7 +161,7 @@ export function calculateFinancialHealth(
   }
 
   return {
-    totalIncome,
+    totalIncome: effectiveIncome,
     totalExpense,
     totalFees,
     netSavings,

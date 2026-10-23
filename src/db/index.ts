@@ -162,10 +162,20 @@ class BudgetDB {
   async getCategories(): Promise<Category[]> {
     const db = await this.dbPromise;
     return new Promise((resolve, reject) => {
-      const tx = db.transaction('categories', 'readonly');
+      const tx = db.transaction('categories', 'readwrite');
       const store = tx.objectStore('categories');
       const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const existing = (request.result || []) as Category[];
+        const existingIds = new Set(existing.map(c => c.id));
+        for (const defCat of DEFAULT_CATEGORIES) {
+          if (!existingIds.has(defCat.id)) {
+            store.put(defCat);
+            existing.push(defCat);
+          }
+        }
+        resolve(existing);
+      };
       request.onerror = () => reject(request.error);
     });
   }
@@ -221,10 +231,20 @@ class BudgetDB {
   async getRules(): Promise<CategorizationRule[]> {
     const db = await this.dbPromise;
     return new Promise((resolve, reject) => {
-      const tx = db.transaction('rules', 'readonly');
+      const tx = db.transaction('rules', 'readwrite');
       const store = tx.objectStore('rules');
       const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const existing = (request.result || []) as CategorizationRule[];
+        const existingIds = new Set(existing.map(r => r.id));
+        for (const defRule of DEFAULT_RULES) {
+          if (!existingIds.has(defRule.id)) {
+            store.put(defRule);
+            existing.push(defRule);
+          }
+        }
+        resolve(existing);
+      };
       request.onerror = () => reject(request.error);
     });
   }

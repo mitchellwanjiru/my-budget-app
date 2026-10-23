@@ -253,7 +253,12 @@ export const App: React.FC = () => {
     await loadData();
   };
 
-  const report = calculateFinancialHealth(transactions, categories);
+  const categoryBudgetSum = categories
+    .filter(c => c.type === 'expense')
+    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+  const activeBudget = overallBudget > 0 ? overallBudget : categoryBudgetSum;
+
+  const report = calculateFinancialHealth(transactions, categories, undefined, activeBudget);
 
   if (isLoading) {
     return (
@@ -339,6 +344,8 @@ export const App: React.FC = () => {
             categories={categories}
             transactions={transactions}
             savingsGoals={savingsGoals}
+            overallBudget={activeBudget}
+            onUpdateOverallBudget={handleUpdateOverallBudget}
             onSaveCategory={handleSaveCategory}
             onSaveGoal={handleSaveGoal}
             onDeleteGoal={handleDeleteGoal}
@@ -350,6 +357,7 @@ export const App: React.FC = () => {
           <FinancialInsights
             transactions={transactions}
             categories={categories}
+            overallBudget={activeBudget}
           />
         )}
 

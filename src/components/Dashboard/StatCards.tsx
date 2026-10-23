@@ -50,14 +50,16 @@ export const StatCards: React.FC<StatCardsProps> = ({
       {/* Net Savings & Savings Rate */}
       <div className="bg-white border border-pink-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Savings Rate</span>
-          <div className="p-2.5 rounded-2xl bg-rose-50 text-rose-600">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            {netSavings < 0 ? 'Net Deficit' : 'Net Savings'}
+          </span>
+          <div className={`p-2.5 rounded-2xl ${netSavings < 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
             <PiggyBank className="w-4 h-4" />
           </div>
         </div>
         <div className="mt-3">
           <div className="flex items-baseline justify-between">
-            <h3 className={`text-2xl font-black tracking-tight ${netSavings >= 0 ? 'text-slate-900' : 'text-pink-600'}`}>
+            <h3 className={`text-2xl font-black tracking-tight ${netSavings >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
               {formatCurrency(netSavings)}
             </h3>
             <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${

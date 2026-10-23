@@ -14,13 +14,36 @@ import { formatCurrency } from '../../utils/formatters';
 interface FinancialInsightsProps {
   transactions: Transaction[];
   categories: Category[];
+  overallBudget?: number;
 }
 
 export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
   transactions,
-  categories
+  categories,
+  overallBudget = 0
 }) => {
-  const report: BudgetHealthReport = calculateFinancialHealth(transactions, categories);
+  const categoryBudgetSum = categories
+    .filter(c => c.type === 'expense')
+    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+  const activeBudget = overallBudget > 0 ? overallBudget : categoryBudgetSum;
+
+  const report: BudgetHealthReport = calculateFinancialHealth(transactions, categories, undefined, activeBudget);
+
+  const needsSpend = report.topExpenseCategories
+    .filter(c => ['cat_groceries', 'cat_utilities', 'cat_transport', 'cat_health', 'cat_family'].includes(c.category.id))
+    .reduce((sum, c) => sum + c.amount, 0);
+
+  const wantsSpend = report.topExpenseCategories
+    .filter(c => ['cat_dining', 'cat_entertainment', 'cat_shopping', 'cat_hair', 'cat_airtime', 'cat_general'].includes(c.category.id))
+    .reduce((sum, c) => sum + c.amount, 0);
+
+  const targetNeeds = activeBudget > 0 ? Math.round(activeBudget * 0.5) : 0;
+  const targetWants = activeBudget > 0 ? Math.round(activeBudget * 0.3) : 0;
+  const targetSavings = activeBudget > 0 ? Math.round(activeBudget * 0.2) : 0;
+
+  const needsPct = targetNeeds > 0 ? Math.round((needsSpend / targetNeeds) * 100) : 0;
+  const wantsPct = targetWants > 0 ? Math.round((wantsSpend / targetWants) * 100) : 0;
+  const savingsPct = targetSavings > 0 ? Math.round((Math.max(0, report.netSavings) / targetSavings) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -43,61 +66,120 @@ export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
 
       {/* 50/30/20 Rule Framework Breakdown */}
       <div className="bg-white border border-pink-100 rounded-3xl p-6 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-base font-black text-slate-900">The 50/30/20 Spending Balance</h3>
-          <p className="text-xs text-slate-400">
-            A healthy personal budget aims for 50% on essentials, 30% on lifestyle wants, and 20% into savings.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-black text-slate-900">The 50/30/20 Spending Balance</h3>
+            <p className="text-xs text-slate-400">
+              {activeBudget > 0
+                ? `Calculated from your active monthly budget of ${formatCurrency(activeBudget)}`
+                : 'A healthy budget aims for 50% on essentials, 30% on lifestyle wants, and 20% into savings.'}
+            </p>
+          </div>
+          {activeBudget > 0 && (
+            <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-pink-50 text-pink-700 border border-pink-200 self-start sm:self-auto">
+              Budget: {formatCurrency(activeBudget)}
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
           {/* Needs */}
-          <div className="p-4 rounded-2xl bg-pink-50/40 border border-pink-100 space-y-1.5">
+          <div className="p-4 rounded-2xl bg-pink-50/40 border border-pink-100 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-700">1. Essential Needs</span>
-              <span className="text-[10px] font-bold text-slate-400">Target ≤ 50%</span>
+              <span className="text-[10px] font-bold text-slate-400">
+                {targetNeeds > 0 ? `Target: ≤ ${formatCurrency(targetNeeds)} (50%)` : 'Target ≤ 50%'}
+              </span>
             </div>
             <p className="text-xl font-black text-slate-900">
-              {formatCurrency(
-                report.topExpenseCategories
-                  .filter(c => ['cat_groceries', 'cat_utilities', 'cat_transport', 'cat_health', 'cat_family'].includes(c.category.id))
-                  .reduce((sum, c) => sum + c.amount, 0)
-              )}
+              {formatCurrency(needsSpend)}
             </p>
-            <p className="text-[11px] text-slate-500">
+            {targetNeeds > 0 && (
+              <div className="space-y-1">
+                <div className="w-full h-1.5 rounded-full bg-pink-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      needsSpend > targetNeeds ? 'bg-rose-500' : 'bg-pink-500'
+                    }`}
+                    style={{ width: `${Math.min(100, needsPct)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span className={needsSpend > targetNeeds ? 'text-rose-600' : 'text-slate-500'}>
+                    {needsSpend > targetNeeds ? `Over by ${formatCurrency(needsSpend - targetNeeds)}` : `${formatCurrency(targetNeeds - needsSpend)} remaining`}
+                  </span>
+                  <span className="text-slate-400">{needsPct}%</span>
+                </div>
+              </div>
+            )}
+            <p className="text-[11px] text-slate-500 pt-0.5">
               Groceries, power/water, transport, health & family.
             </p>
           </div>
 
           {/* Wants */}
-          <div className="p-4 rounded-2xl bg-pink-50/40 border border-pink-100 space-y-1.5">
+          <div className="p-4 rounded-2xl bg-pink-50/40 border border-pink-100 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-pink-700">2. Lifestyle Wants</span>
-              <span className="text-[10px] font-bold text-slate-400">Target ≤ 30%</span>
+              <span className="text-[10px] font-bold text-slate-400">
+                {targetWants > 0 ? `Target: ≤ ${formatCurrency(targetWants)} (30%)` : 'Target ≤ 30%'}
+              </span>
             </div>
             <p className="text-xl font-black text-pink-600">
-              {formatCurrency(
-                report.topExpenseCategories
-                  .filter(c => ['cat_dining', 'cat_entertainment', 'cat_shopping', 'cat_airtime'].includes(c.category.id))
-                  .reduce((sum, c) => sum + c.amount, 0)
-              )}
+              {formatCurrency(wantsSpend)}
             </p>
-            <p className="text-[11px] text-slate-500">
-              Dining & coffee, shopping, leisure, extra airtime.
+            {targetWants > 0 && (
+              <div className="space-y-1">
+                <div className="w-full h-1.5 rounded-full bg-pink-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      wantsSpend > targetWants ? 'bg-rose-500' : 'bg-pink-500'
+                    }`}
+                    style={{ width: `${Math.min(100, wantsPct)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span className={wantsSpend > targetWants ? 'text-rose-600' : 'text-pink-600'}>
+                    {wantsSpend > targetWants ? `Over by ${formatCurrency(wantsSpend - targetWants)}` : `${formatCurrency(targetWants - wantsSpend)} remaining`}
+                  </span>
+                  <span className="text-slate-400">{wantsPct}%</span>
+                </div>
+              </div>
+            )}
+            <p className="text-[11px] text-slate-500 pt-0.5">
+              Dining, shopping, hair & beauty, leisure, airtime.
             </p>
           </div>
 
           {/* Savings */}
-          <div className="p-4 rounded-2xl bg-pink-50/40 border border-pink-100 space-y-1.5">
+          <div className="p-4 rounded-2xl bg-pink-50/40 border border-pink-100 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-emerald-700">3. Net Savings</span>
-              <span className="text-[10px] font-bold text-slate-400">Target ≥ 20%</span>
+              <span className="text-[10px] font-bold text-slate-400">
+                {targetSavings > 0 ? `Target: ≥ ${formatCurrency(targetSavings)} (20%)` : 'Target ≥ 20%'}
+              </span>
             </div>
             <p className={`text-xl font-black ${report.netSavings >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {formatCurrency(report.netSavings)}
             </p>
-            <p className="text-[11px] text-slate-500">
-              {report.savingsRate}% of recorded income saved.
+            {targetSavings > 0 && (
+              <div className="space-y-1">
+                <div className="w-full h-1.5 rounded-full bg-pink-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${Math.min(100, savingsPct)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span className={report.netSavings >= targetSavings ? 'text-emerald-600' : 'text-slate-500'}>
+                    {report.netSavings >= targetSavings ? 'Target Achieved! 🌟' : `${formatCurrency(targetSavings - Math.max(0, report.netSavings))} to target`}
+                  </span>
+                  <span className="text-slate-400">{savingsPct}%</span>
+                </div>
+              </div>
+            )}
+            <p className="text-[11px] text-slate-500 pt-0.5">
+              {report.savingsRate}% of recorded budget/income saved.
             </p>
           </div>
         </div>
