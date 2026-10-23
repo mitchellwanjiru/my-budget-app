@@ -5,7 +5,6 @@ import {
   CheckCircle2, 
   Receipt, 
   Zap, 
-  Award,
   Sparkles
 } from 'lucide-react';
 import { BudgetHealthReport, Category, Transaction } from '../../types';
@@ -23,31 +22,9 @@ export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
 }) => {
   const report: BudgetHealthReport = calculateFinancialHealth(transactions, categories);
 
-  let healthScore = 70;
-  if (report.savingsRate >= 20) healthScore += 15;
-  else if (report.savingsRate > 0) healthScore += 5;
-  else healthScore -= 20;
-
-  const overBudgetCnt = report.budgetAlerts.filter(b => b.isOver).length;
-  healthScore -= (overBudgetCnt * 8);
-
-  if (report.totalExpense > 0 && (report.totalFees / report.totalExpense) < 0.015) {
-    healthScore += 10;
-  }
-  healthScore = Math.max(10, Math.min(100, healthScore));
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Excellent' };
-    if (score >= 60) return { text: 'text-pink-600', bg: 'bg-pink-50', border: 'border-pink-200', label: 'Good' };
-    if (score >= 40) return { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Fair' };
-    return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', label: 'Needs Attention' };
-  };
-
-  const scoreInfo = getScoreColor(healthScore);
-
   return (
     <div className="space-y-6">
-      {/* Top Banner / Health Score */}
+      {/* Top Banner */}
       <div className="bg-white border border-pink-100 rounded-3xl p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           <div>
@@ -60,20 +37,6 @@ export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
             <p className="text-xs sm:text-sm text-slate-500 mt-2 max-w-xl leading-relaxed">
               Automated financial feedback based on your spending, savings discipline, and M-Pesa transaction costs.
             </p>
-          </div>
-
-          {/* Health Score Pill */}
-          <div className={`flex items-center space-x-4 p-4 rounded-3xl border ${scoreInfo.border} ${scoreInfo.bg} flex-shrink-0`}>
-            <div className="w-14 h-14 rounded-full bg-white border-2 border-pink-200 flex items-center justify-center shadow-sm">
-              <span className={`text-xl font-black ${scoreInfo.text}`}>{healthScore}</span>
-            </div>
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Score</span>
-              <div className="flex items-center space-x-1.5 mt-0.5">
-                <span className={`text-sm font-extrabold ${scoreInfo.text}`}>{scoreInfo.label}</span>
-                <Award className={`w-4 h-4 ${scoreInfo.text}`} />
-              </div>
-            </div>
           </div>
         </div>
       </div>
