@@ -47,8 +47,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center space-x-2.5 cursor-pointer group" 
               onClick={() => setActiveTab('dashboard')}
             >
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center shadow-md shadow-pink-500/20 group-hover:scale-105 transition">
-                <span className="font-extrabold text-lg text-white">🌸</span>
+              <div className="w-10 h-10 rounded-2xl bg-[#020106] p-0.5 border border-purple-200/50 flex items-center justify-center shadow-md shadow-purple-500/20 group-hover:scale-105 transition overflow-hidden">
+                <img src="/app-logo.png" alt="My Budget Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span className="font-black text-lg text-slate-900 tracking-tight">My Budget</span>

@@ -71,8 +71,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       <div className="flex flex-col items-center text-center max-w-sm -mt-6">
         {/* Animated Icon Avatar */}
         <div className="relative mb-6">
-          <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-pink-500 via-rose-400 to-pink-300 flex items-center justify-center shadow-xl shadow-pink-500/30 transform transition-transform hover:scale-105 active:scale-95 animate-pulse">
-            <span className="text-4xl filter drop-shadow-md">🌸</span>
+          <div className="w-24 h-24 rounded-3xl bg-[#020106] p-1.5 border-2 border-purple-200/50 flex items-center justify-center shadow-xl shadow-purple-500/25 transform transition-transform hover:scale-105 active:scale-95 animate-pulse overflow-hidden">
+            <img src="/app-logo.png" alt="My Budget Logo" className="w-full h-full object-contain filter drop-shadow-md" />
           </div>
           <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md border border-pink-100">
             <Sparkles className="w-4 h-4 text-pink-500 fill-pink-500" />
