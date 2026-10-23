@@ -278,7 +278,6 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAddModal={() => setIsAddModalOpen(true)}
-        onOpenPhoneModal={() => setIsPhoneModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -292,7 +291,6 @@ export const App: React.FC = () => {
               overallBudget={overallBudget}
               totalSpent={report.totalExpense}
               onUpdateBudget={handleUpdateOverallBudget}
-              onOpenPhoneModal={() => setIsPhoneModalOpen(true)}
               onQuickPaste={handleManualQuickParse}
             />
 

@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Target, Edit3, Plus, Sparkles, Smartphone, Check, X, ArrowRight } from 'lucide-react';
+import { Target, Edit3, Plus, Sparkles, Check, X, ArrowRight } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
 
 interface MainBudgetCardProps {
   overallBudget: number;
   totalSpent: number;
   onUpdateBudget: (newBudget: number) => void;
-  onOpenPhoneModal: () => void;
   onQuickPaste: (text: string) => void;
 }
 
@@ -14,7 +13,6 @@ export const MainBudgetCard: React.FC<MainBudgetCardProps> = ({
   overallBudget,
   totalSpent,
   onUpdateBudget,
-  onOpenPhoneModal,
   onQuickPaste,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -57,16 +55,6 @@ export const MainBudgetCard: React.FC<MainBudgetCardProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* Open on Phone Pill */}
-          <button
-            onClick={onOpenPhoneModal}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-xs font-bold transition"
-            title="Download or open on your mobile phone"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>Use on Phone</span>
-          </button>
-
           {/* Quick Paste Toggle */}
           <button
             onClick={() => setShowPasteBox(!showPasteBox)}

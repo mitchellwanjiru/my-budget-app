@@ -5,7 +5,8 @@ import { ParsedMessageResult, TransactionType, CategorizationRule, Category } fr
  * e.g., "Ksh1,250.00" -> 1250.00
  */
 export function extractAmount(text: string): number | null {
-  const match = text.match(/(?:Ksh|KES|KSH|\$|EUR|GBP)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/i);
+  // Must match explicit currency prefix (Ksh, KES, KSH, $, EUR, GBP) so it doesn't match random letters/numbers
+  const match = text.match(/(?:Ksh|KES|KSH|\$|EUR|GBP)\.?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/i);
   if (!match) return null;
   const cleaned = match[1].replace(/,/g, '');
   const val = parseFloat(cleaned);
@@ -204,12 +205,12 @@ export function parseMpesaMessage(
     };
   }
 
-  // Pattern C: "sent to <NAME> <PHONE> on" (Send Money P2P)
-  const sentToPersonMatch = trimmed.match(/(?:Ksh|KES)\s*([0-9,.]+)\s+sent\s+to\s+([A-Za-z\s]+?)\s+((?:\+?254|0)[0-9]{8,10})\s+on/i);
+  // Pattern C: "sent to <NAME> [<PHONE>] on <DATE>" (Send Money P2P)
+  const sentToPersonMatch = trimmed.match(/(?:Ksh|KES)\s*([0-9,.]+)\s+sent\s+to\s+([A-Za-z0-9\s]+?)(?:\s+((?:\+?254|0)[0-9]{8,10}))?\s+on\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
   if (sentToPersonMatch) {
     const amount = parseFloat(sentToPersonMatch[1].replace(/,/g, ''));
-    const name = sentToPersonMatch[2].trim();
-    const phone = sentToPersonMatch[3].trim();
+    const name = sentToPersonMatch[2].replace(/\s+/g, ' ').trim();
+    const phone = sentToPersonMatch[3]?.trim();
     const { categoryId, confidence } = categorizeTransaction(name, trimmed, 'expense', rules, categories);
 
     return {
@@ -219,7 +220,7 @@ export function parseMpesaMessage(
       amount,
       fee: fee ?? 0,
       currency: 'Ksh',
-      date,
+      date: normalizeDate(sentToPersonMatch[4]),
       time,
       party: name,
       accountNumber: phone,

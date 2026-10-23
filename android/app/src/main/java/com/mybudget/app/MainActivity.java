@@ -5,8 +5,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -19,34 +19,55 @@ public class MainActivity extends BridgeActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             String smsBody = intent.getStringExtra("sms_body");
-            if (smsBody != null && getBridge() != null && getBridge().getWebView() != null) {
-                // Escape string for JS injection
-                String escaped = smsBody.replace("\\", "\\\\")
-                                        .replace("'", "\\'")
-                                        .replace("\n", "\\n")
-                                        .replace("\r", "");
-                String js = "window.dispatchEvent(new CustomEvent('mpesa_sms_received', { detail: '" + escaped + "' }));";
-                getBridge().getWebView().post(() -> getBridge().getWebView().evaluateJavascript(js, null));
+            if (smsBody != null) {
+                dispatchSmsToWebView(smsBody);
             }
         }
     };
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        checkAndRequestSmsPermissions();
+    private void dispatchSmsToWebView(String smsBody) {
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            String escaped = smsBody.replace("\\", "\\\\")
+                                    .replace("'", "\\'")
+                                    .replace("\n", "\\n")
+                                    .replace("\r", "");
+            String js = "window.dispatchEvent(new CustomEvent('mpesa_sms_received', { detail: '" + escaped + "' }));";
+            getBridge().getWebView().post(() -> getBridge().getWebView().evaluateJavascript(js, null));
+        }
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        checkAndRequestSmsPermissions();
+
+        // Register receiver for duration of the activity life
         IntentFilter filter = new IntentFilter("com.mybudget.app.MPESA_SMS_RECEIVED");
         ContextCompat.registerReceiver(this, mpesaReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
-    public void onPause() {
-        super.onPause();
+    public void onResume() {
+        super.onResume();
+        // Check if an SMS arrived while the app was closed or in the background
+        checkPendingSms();
+    }
+
+    private void checkPendingSms() {
+        SharedPreferences prefs = getSharedPreferences(MpesaSmsReceiver.PREFS_NAME, Context.MODE_PRIVATE);
+        String pending = prefs.getString(MpesaSmsReceiver.KEY_PENDING_SMS, null);
+        if (pending != null) {
+            prefs.edit().remove(MpesaSmsReceiver.KEY_PENDING_SMS).apply();
+            // Post with slight delay to ensure WebView DOM is fully loaded and active
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                getBridge().getWebView().postDelayed(() -> dispatchSmsToWebView(pending), 800);
+            }
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
         try {
             unregisterReceiver(mpesaReceiver);
         } catch (Exception ignored) {}
