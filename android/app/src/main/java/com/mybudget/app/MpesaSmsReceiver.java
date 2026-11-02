@@ -33,23 +33,33 @@ public class MpesaSmsReceiver extends BroadcastReceiver {
                             String sender = message.getDisplayOriginatingAddress();
                             String body = message.getMessageBody();
 
-                            if (body != null && (
-                                (sender != null && (sender.toUpperCase().contains("MPESA") || sender.toUpperCase().contains("M-PESA"))) ||
-                                body.contains("Confirmed. Ksh") || 
-                                body.contains("confirmed. You bought") ||
-                                body.contains("You have received Ksh")
-                            )) {
-                                Log.d(TAG, "M-Pesa SMS detected: " + body);
+                            if (body != null) {
+                                String upperBody = body.toUpperCase();
+                                String upperSender = (sender != null) ? sender.toUpperCase() : "";
 
-                                // 1. Save to SharedPreferences so it is never lost if app is closed or backgrounded
-                                SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-                                prefs.edit().putString(KEY_PENDING_SMS, body).apply();
+                                if (upperSender.contains("MPESA") || upperSender.contains("M-PESA") ||
+                                    upperBody.contains("CONFIRMED") ||
+                                    upperBody.contains("RECEIVED KSH") ||
+                                    upperBody.contains("SENT TO") ||
+                                    upperBody.contains("PAID TO") ||
+                                    upperBody.contains("YOU BOUGHT") ||
+                                    upperBody.contains("GIVE KSH") ||
+                                    upperBody.contains("WITHDRAW")
+                                ) {
+                                    Log.d(TAG, "M-Pesa SMS detected: " + body);
 
-                                // 2. Broadcast to active MainActivity if in foreground
-                                Intent notifyIntent = new Intent("com.mybudget.app.MPESA_SMS_RECEIVED");
-                                notifyIntent.putExtra("sms_body", body);
-                                notifyIntent.setPackage(context.getPackageName());
-                                context.sendBroadcast(notifyIntent);
+                                    // 1. Save to SharedPreferences with split delimiter so multiple queued messages are never lost
+                                    SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                                    String existing = prefs.getString(KEY_PENDING_SMS, null);
+                                    String combined = (existing != null && !existing.isEmpty()) ? existing + "\n---SPLIT---\n" + body : body;
+                                    prefs.edit().putString(KEY_PENDING_SMS, combined).apply();
+
+                                    // 2. Broadcast to active MainActivity if in foreground
+                                    Intent notifyIntent = new Intent("com.mybudget.app.MPESA_SMS_RECEIVED");
+                                    notifyIntent.putExtra("sms_body", body);
+                                    notifyIntent.setPackage(context.getPackageName());
+                                    context.sendBroadcast(notifyIntent);
+                                }
                             }
                         }
                     }

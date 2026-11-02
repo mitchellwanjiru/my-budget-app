@@ -87,14 +87,43 @@ export const App: React.FC = () => {
       }
     };
 
-    // Native Android direct SMS receiver event listener
-    const handleNativeMpesaSms = (e: any) => {
-      const smsText = e.detail;
-      if (smsText) {
-        const parsed = parseMpesaMessage(smsText, rules, categories);
-        if (parsed.isValid) {
-          setDetectedTransaction(parsed);
+    // Native Android direct SMS receiver event listener & handler
+    const handleIncomingSms = (smsText: string) => {
+      if (!smsText) return;
+      if (smsText.includes('---SPLIT---')) {
+        const parts = smsText.split('---SPLIT---');
+        parts.forEach(p => {
+          if (p.trim()) handleIncomingSms(p.trim());
+        });
+        return;
+      }
+      const parsed = parseMpesaMessage(smsText, rules, categories);
+      if (parsed.isValid) {
+        setDetectedTransaction(parsed);
+        setShowWelcome(false); // Dismiss splash screen so user immediately sees pop-up
+      }
+    };
+
+    // Register global handler for native Android bridge
+    (window as any).__appReady = true;
+    (window as any).__receiveMpesaSms = (smsText: string) => {
+      handleIncomingSms(smsText);
+    };
+
+    // Pull any pending SMS from native bridge if available
+    try {
+      if ((window as any).MpesaNativeBridge?.getPendingSms) {
+        const pending = (window as any).MpesaNativeBridge.getPendingSms();
+        if (pending) {
+          handleIncomingSms(pending);
         }
+      }
+    } catch (ignored) {}
+
+    const handleNativeMpesaSms = (e: any) => {
+      const smsText = typeof e === 'string' ? e : e?.detail;
+      if (smsText) {
+        handleIncomingSms(smsText);
       }
     };
 
@@ -294,6 +323,7 @@ export const App: React.FC = () => {
             {/* Front & Center: My Monthly Budget Card */}
             <MainBudgetCard
               overallBudget={overallBudget}
+              totalIncome={report.totalIncome}
               totalSpent={report.totalExpense}
               onUpdateBudget={handleUpdateOverallBudget}
               onQuickPaste={handleManualQuickParse}

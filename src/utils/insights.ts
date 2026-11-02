@@ -31,8 +31,8 @@ export function calculateFinancialHealth(
     }
   }
 
-  // If no explicit income is recorded, use the user's active budget/salary as the baseline funds
-  const effectiveIncome = totalIncome > 0 ? totalIncome : (baselineBudget > 0 ? baselineBudget : 0);
+  // Baseline budget + any extra income received this month = Total funds available
+  const effectiveIncome = baselineBudget > 0 ? baselineBudget + totalIncome : totalIncome;
   const netSavings = effectiveIncome - totalExpense;
   const savingsRate = effectiveIncome > 0 ? Math.max(0, Math.round((netSavings / effectiveIncome) * 100)) : 0;
 

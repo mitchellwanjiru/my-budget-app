@@ -4,6 +4,7 @@ import { formatCurrency } from '../../utils/formatters';
 
 interface MainBudgetCardProps {
   overallBudget: number;
+  totalIncome?: number;
   totalSpent: number;
   onUpdateBudget: (newBudget: number) => void;
   onQuickPaste: (text: string) => void;
@@ -11,6 +12,7 @@ interface MainBudgetCardProps {
 
 export const MainBudgetCard: React.FC<MainBudgetCardProps> = ({
   overallBudget,
+  totalIncome = 0,
   totalSpent,
   onUpdateBudget,
   onQuickPaste,
@@ -20,9 +22,11 @@ export const MainBudgetCard: React.FC<MainBudgetCardProps> = ({
   const [showPasteBox, setShowPasteBox] = useState(false);
   const [pastedSms, setPastedSms] = useState('');
 
-  const remaining = overallBudget > 0 ? overallBudget - totalSpent : 0;
-  const percentUsed = overallBudget > 0 ? Math.min(100, Math.round((totalSpent / overallBudget) * 100)) : 0;
-  const isOver = overallBudget > 0 && totalSpent > overallBudget;
+  const extraIncome = totalIncome > 0 ? totalIncome : 0;
+  const effectiveBudget = overallBudget > 0 ? overallBudget + extraIncome : extraIncome;
+  const remaining = effectiveBudget > 0 ? effectiveBudget - totalSpent : 0;
+  const percentUsed = effectiveBudget > 0 ? Math.min(100, Math.round((totalSpent / effectiveBudget) * 100)) : 0;
+  const isOver = effectiveBudget > 0 && totalSpent > effectiveBudget;
 
   const handleSaveBudget = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,8 +151,15 @@ export const MainBudgetCard: React.FC<MainBudgetCardProps> = ({
             {/* 1. Monthly Budget */}
             <div className="p-4 rounded-2xl bg-pink-50/50 border border-pink-100 flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Budget</span>
-                <p className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(overallBudget)}</p>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {extraIncome > 0 ? 'Total Available Budget' : 'Monthly Budget'}
+                </span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(effectiveBudget)}</p>
+                {extraIncome > 0 && (
+                  <p className="text-[11px] font-bold text-emerald-600 mt-0.5">
+                    Base {formatCurrency(overallBudget)} + {formatCurrency(extraIncome)} income
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => {

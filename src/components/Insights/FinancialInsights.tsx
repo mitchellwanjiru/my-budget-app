@@ -37,9 +37,11 @@ export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
     .filter(c => ['cat_dining', 'cat_entertainment', 'cat_shopping', 'cat_hair', 'cat_airtime', 'cat_general'].includes(c.category.id))
     .reduce((sum, c) => sum + c.amount, 0);
 
-  const targetNeeds = activeBudget > 0 ? Math.round(activeBudget * 0.5) : 0;
-  const targetWants = activeBudget > 0 ? Math.round(activeBudget * 0.3) : 0;
-  const targetSavings = activeBudget > 0 ? Math.round(activeBudget * 0.2) : 0;
+  const totalFunds = activeBudget + (report.totalIncome > 0 ? report.totalIncome : 0);
+
+  const targetNeeds = totalFunds > 0 ? Math.round(totalFunds * 0.5) : 0;
+  const targetWants = totalFunds > 0 ? Math.round(totalFunds * 0.3) : 0;
+  const targetSavings = totalFunds > 0 ? Math.round(totalFunds * 0.2) : 0;
 
   const needsPct = targetNeeds > 0 ? Math.round((needsSpend / targetNeeds) * 100) : 0;
   const wantsPct = targetWants > 0 ? Math.round((wantsSpend / targetWants) * 100) : 0;
@@ -70,14 +72,18 @@ export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
           <div>
             <h3 className="text-base font-black text-slate-900">The 50/30/20 Spending Balance</h3>
             <p className="text-xs text-slate-400">
-              {activeBudget > 0
-                ? `Calculated from your active monthly budget of ${formatCurrency(activeBudget)}`
+              {totalFunds > 0
+                ? report.totalIncome > 0
+                  ? `Calculated from your total available funds of ${formatCurrency(totalFunds)} (${formatCurrency(activeBudget)} budget + ${formatCurrency(report.totalIncome)} extra income)`
+                  : `Calculated from your active monthly budget of ${formatCurrency(activeBudget)}`
                 : 'A healthy budget aims for 50% on essentials, 30% on lifestyle wants, and 20% into savings.'}
             </p>
           </div>
-          {activeBudget > 0 && (
+          {totalFunds > 0 && (
             <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-pink-50 text-pink-700 border border-pink-200 self-start sm:self-auto">
-              Budget: {formatCurrency(activeBudget)}
+              {report.totalIncome > 0
+                ? `Total Funds: ${formatCurrency(totalFunds)}`
+                : `Budget: ${formatCurrency(activeBudget)}`}
             </span>
           )}
         </div>
