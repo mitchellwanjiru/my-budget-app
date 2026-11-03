@@ -70,7 +70,8 @@ export interface ParsedMessageResult {
 }
 
 export interface BudgetHealthReport {
-  totalIncome: number;
+  totalIncome: number; // Pure actual inflows / income received
+  totalAvailableFunds: number; // Baseline budget + actual inflows
   totalExpense: number;
   totalFees: number;
   netSavings: number;

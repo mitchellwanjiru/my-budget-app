@@ -5,10 +5,11 @@ import {
   ArrowUpRight, 
   ArrowDownLeft, 
   ChevronDown, 
-  ChevronUp
+  ChevronUp,
+  Calendar
 } from 'lucide-react';
 import { Transaction, Category } from '../../types';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency, formatDate, formatMonthName } from '../../utils/formatters';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -24,11 +25,22 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   onUpdateCategory
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
+
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    for (const t of transactions) {
+      if (t.date && t.date.length >= 7) {
+        months.add(t.date.slice(0, 7));
+      }
+    }
+    return Array.from(months).sort().reverse();
+  }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
@@ -40,12 +52,21 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         (t.notes && t.notes.toLowerCase().includes(query)) ||
         (t.accountNumber && t.accountNumber.toLowerCase().includes(query));
 
+      const matchesMonth = selectedMonth === 'all' || t.date.startsWith(selectedMonth);
       const matchesCat = selectedCategory === 'all' || t.categoryId === selectedCategory;
       const matchesType = selectedType === 'all' || t.type === selectedType;
 
-      return matchesSearch && matchesCat && matchesType;
+      return matchesSearch && matchesMonth && matchesCat && matchesType;
     });
-  }, [transactions, searchQuery, selectedCategory, selectedType]);
+  }, [transactions, searchQuery, selectedMonth, selectedCategory, selectedType]);
+
+  const totalFilteredIncome = useMemo(() => {
+    return filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  }, [filteredTransactions]);
+
+  const totalFilteredExpense = useMemo(() => {
+    return filteredTransactions.filter(t => t.type === 'expense' || t.type === 'transfer').reduce((sum, t) => sum + t.amount, 0);
+  }, [filteredTransactions]);
 
   const toggleExpand = (id: string) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -54,18 +75,34 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   return (
     <div className="space-y-4">
       {/* Search & Filter Header */}
-      <div className="bg-white border border-pink-100 rounded-3xl p-4 sm:p-5 shadow-sm">
+      <div className="bg-white border border-pink-100 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
           {/* Search bar */}
-          <div className="sm:col-span-6 relative">
+          <div className="sm:col-span-4 relative">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search merchant, M-Pesa code, notes..."
+              placeholder="Search merchant, M-Pesa code..."
               className="w-full bg-pink-50/50 border border-pink-200 rounded-2xl pl-10 pr-3 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500 transition"
             />
+          </div>
+
+          {/* Month Filter */}
+          <div className="sm:col-span-3">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full bg-pink-50/50 border border-pink-200 rounded-2xl px-3 py-2 text-xs sm:text-sm text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-pink-500"
+            >
+              <option value="all">All Months</option>
+              {availableMonths.map((m) => (
+                <option key={m} value={m}>
+                  {formatMonthName(m)}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Category Filter */}
@@ -85,17 +122,33 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           </div>
 
           {/* Type Filter */}
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2">
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
               className="w-full bg-pink-50/50 border border-pink-200 rounded-2xl px-3 py-2 text-xs sm:text-sm text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-pink-500"
             >
               <option value="all">All Types</option>
-              <option value="expense">Spending Only</option>
-              <option value="income">Income Only</option>
-              <option value="transfer">Transfers Only</option>
+              <option value="expense">Spent</option>
+              <option value="income">Income</option>
+              <option value="transfer">Transfers</option>
             </select>
+          </div>
+        </div>
+
+        {/* Quick totals banner for current filter */}
+        <div className="flex flex-wrap items-center justify-between pt-2 border-t border-pink-50 text-xs font-bold gap-2">
+          <span className="text-slate-400">
+            Showing {filteredTransactions.length} transactions
+            {selectedMonth !== 'all' ? ` for ${formatMonthName(selectedMonth)}` : ''}
+          </span>
+          <div className="flex items-center space-x-3">
+            <span className="text-pink-600 bg-pink-50 px-2.5 py-1 rounded-xl border border-pink-100">
+              Total Spent: {formatCurrency(totalFilteredExpense)}
+            </span>
+            <span className="text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100">
+              Total Inflows: {formatCurrency(totalFilteredIncome)}
+            </span>
           </div>
         </div>
       </div>

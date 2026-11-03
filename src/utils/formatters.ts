@@ -36,3 +36,39 @@ export function formatRelativeDate(dateStr: string): string {
   if (dateStr === yesterday) return 'Yesterday';
   return formatDate(dateStr);
 }
+
+export function formatMonthName(monthStr: string): string {
+  try {
+    const parts = monthStr.split('-');
+    if (parts.length >= 2) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const date = new Date(year, month - 1, 1);
+      return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+    return monthStr;
+  } catch {
+    return monthStr;
+  }
+}
+
+export function getPreviousMonth(monthStr: string): string {
+  try {
+    const [year, month] = monthStr.split('-').map(Number);
+    const date = new Date(year, month - 2, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  } catch {
+    return monthStr;
+  }
+}
+
+export function getNextMonth(monthStr: string): string {
+  try {
+    const [year, month] = monthStr.split('-').map(Number);
+    const date = new Date(year, month, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  } catch {
+    return monthStr;
+  }
+}
+

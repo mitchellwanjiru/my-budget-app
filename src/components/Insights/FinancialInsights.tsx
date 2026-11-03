@@ -15,19 +15,21 @@ interface FinancialInsightsProps {
   transactions: Transaction[];
   categories: Category[];
   overallBudget?: number;
+  selectedMonth?: string;
 }
 
 export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
   transactions,
   categories,
-  overallBudget = 0
+  overallBudget = 0,
+  selectedMonth
 }) => {
   const categoryBudgetSum = categories
     .filter(c => c.type === 'expense')
     .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
   const activeBudget = overallBudget > 0 ? overallBudget : categoryBudgetSum;
 
-  const report: BudgetHealthReport = calculateFinancialHealth(transactions, categories, undefined, activeBudget);
+  const report: BudgetHealthReport = calculateFinancialHealth(transactions, categories, selectedMonth, activeBudget);
 
   const needsSpend = report.topExpenseCategories
     .filter(c => ['cat_groceries', 'cat_utilities', 'cat_transport', 'cat_health', 'cat_family'].includes(c.category.id))
@@ -37,7 +39,7 @@ export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
     .filter(c => ['cat_dining', 'cat_entertainment', 'cat_shopping', 'cat_hair', 'cat_airtime', 'cat_general'].includes(c.category.id))
     .reduce((sum, c) => sum + c.amount, 0);
 
-  const totalFunds = activeBudget + (report.totalIncome > 0 ? report.totalIncome : 0);
+  const totalFunds = report.totalAvailableFunds;
 
   const targetNeeds = totalFunds > 0 ? Math.round(totalFunds * 0.5) : 0;
   const targetWants = totalFunds > 0 ? Math.round(totalFunds * 0.3) : 0;

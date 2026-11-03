@@ -8,9 +8,8 @@ export function calculateFinancialHealth(
 ): BudgetHealthReport {
   const selectedMonth = currentMonthStr || new Date().toISOString().slice(0, 7);
 
-  // Filter transactions for the selected month (or all if empty)
-  const monthTransactions = transactions.filter(t => t.date.startsWith(selectedMonth));
-  const activeTx = monthTransactions.length > 0 ? monthTransactions : transactions;
+  // Filter transactions strictly for the selected month (never fall back to other months)
+  const activeTx = transactions.filter(t => t.date.startsWith(selectedMonth));
 
   let totalIncome = 0;
   let totalExpense = 0;
@@ -73,7 +72,8 @@ export function calculateFinancialHealth(
   const insights: BudgetHealthReport['insights'] = [];
 
   // 1. Savings Rate Analysis
-  if (totalIncome > 0) {
+  const fundsToEvaluate = effectiveIncome > 0 ? effectiveIncome : totalIncome;
+  if (fundsToEvaluate > 0) {
     if (savingsRate >= 20) {
       insights.push({
         type: 'positive',
@@ -92,7 +92,9 @@ export function calculateFinancialHealth(
       insights.push({
         type: 'warning',
         title: 'Negative Cash Flow Alert',
-        description: `Your spending exceeds your recorded income by Ksh ${Math.abs(netSavings).toLocaleString()}.`,
+        description: baselineBudget > 0
+          ? `Your spending exceeds your total available funds (budget + income) by Ksh ${Math.abs(netSavings).toLocaleString()}.`
+          : `Your spending exceeds your recorded income by Ksh ${Math.abs(netSavings).toLocaleString()}.`,
         actionable: 'Audit your largest discretionary expenses below to prevent dipping into reserves or overdraft.'
       });
     }
@@ -161,7 +163,8 @@ export function calculateFinancialHealth(
   }
 
   return {
-    totalIncome: effectiveIncome,
+    totalIncome, // Pure actual inflows/income received in this period
+    totalAvailableFunds: effectiveIncome, // Baseline budget + actual inflows
     totalExpense,
     totalFees,
     netSavings,

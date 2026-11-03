@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { db } from './db';
 import { 
   Transaction, 
@@ -10,6 +11,7 @@ import {
 import { calculateFinancialHealth } from './utils/insights';
 import { checkClipboardForMpesa } from './utils/clipboardDetector';
 import { parseMpesaMessage } from './parser/mpesaParser';
+import { formatMonthName, getPreviousMonth, getNextMonth } from './utils/formatters';
 
 import { Navbar, ActiveTab } from './components/Navbar';
 import { MainBudgetCard } from './components/Dashboard/MainBudgetCard';
@@ -287,7 +289,10 @@ export const App: React.FC = () => {
     .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
   const activeBudget = overallBudget > 0 ? overallBudget : categoryBudgetSum;
 
-  const report = calculateFinancialHealth(transactions, categories, undefined, activeBudget);
+  const currentMonthStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => currentMonthStr);
+
+  const report = calculateFinancialHealth(transactions, categories, selectedMonth, activeBudget);
 
   if (isLoading) {
     return (
@@ -320,6 +325,50 @@ export const App: React.FC = () => {
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             
+            {/* Month Selection Bar */}
+            <div className="bg-white border border-pink-100 rounded-3xl px-5 py-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Month View</span>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                    {formatMonthName(selectedMonth)}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setSelectedMonth(prev => getPreviousMonth(prev))}
+                  className="px-3 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold transition flex items-center space-x-1"
+                  title="Previous Month"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Prev Month</span>
+                </button>
+
+                {selectedMonth !== currentMonthStr && (
+                  <button
+                    onClick={() => setSelectedMonth(currentMonthStr)}
+                    className="px-3 py-1.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold transition shadow-sm"
+                  >
+                    Current Month
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setSelectedMonth(prev => getNextMonth(prev))}
+                  className="px-3 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold transition flex items-center space-x-1"
+                  title="Next Month"
+                >
+                  <span className="hidden sm:inline">Next Month</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
             {/* Front & Center: My Monthly Budget Card */}
             <MainBudgetCard
               overallBudget={overallBudget}
@@ -375,6 +424,7 @@ export const App: React.FC = () => {
             transactions={transactions}
             savingsGoals={savingsGoals}
             overallBudget={activeBudget}
+            selectedMonth={selectedMonth}
             onUpdateOverallBudget={handleUpdateOverallBudget}
             onSaveCategory={handleSaveCategory}
             onSaveGoal={handleSaveGoal}
@@ -388,6 +438,7 @@ export const App: React.FC = () => {
             transactions={transactions}
             categories={categories}
             overallBudget={activeBudget}
+            selectedMonth={selectedMonth}
           />
         )}
 

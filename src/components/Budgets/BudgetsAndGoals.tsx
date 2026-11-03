@@ -17,6 +17,7 @@ interface BudgetsAndGoalsProps {
   transactions: Transaction[];
   savingsGoals: SavingsGoal[];
   overallBudget?: number;
+  selectedMonth?: string;
   onUpdateOverallBudget?: (amount: number) => void;
   onSaveCategory: (cat: Category) => void;
   onSaveGoal: (goal: SavingsGoal) => void;
@@ -29,6 +30,7 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   transactions,
   savingsGoals,
   overallBudget = 0,
+  selectedMonth,
   onUpdateOverallBudget,
   onSaveCategory,
   onSaveGoal,
@@ -54,7 +56,7 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   const [contributeAmount, setContributeAmount] = useState('');
 
   // Calculate current month spending per category
-  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  const currentMonthStr = selectedMonth || new Date().toISOString().slice(0, 7);
   const monthTransactions = transactions.filter(t => t.date.startsWith(currentMonthStr));
   
   const categorySpendMap = new Map<string, number>();
