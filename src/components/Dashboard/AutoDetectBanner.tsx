@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, ClipboardPaste, ArrowRight, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Sparkles, ClipboardPaste, ArrowRight, ShieldCheck, HelpCircle, Smartphone } from 'lucide-react';
 import { parseMpesaMessage } from '../../parser/mpesaParser';
 import { Category, CategorizationRule, ParsedMessageResult } from '../../types';
 
@@ -8,13 +8,15 @@ interface AutoDetectBannerProps {
   categories: Category[];
   onTriggerParsed: (result: ParsedMessageResult) => void;
   onSimulate: () => void;
+  onOpenPhoneModal?: () => void;
 }
 
 export const AutoDetectBanner: React.FC<AutoDetectBannerProps> = ({
   rules,
   categories,
   onTriggerParsed,
-  onSimulate
+  onSimulate,
+  onOpenPhoneModal
 }) => {
   const [quickText, setQuickText] = useState('');
   const [showHelp, setShowHelp] = useState(false);
@@ -72,14 +74,27 @@ export const AutoDetectBanner: React.FC<AutoDetectBannerProps> = ({
       </div>
 
       {showHelp && (
-        <div className="p-3.5 rounded-2xl bg-pink-50/60 border border-pink-100 text-xs text-slate-600 space-y-1.5 animate-in fade-in duration-150">
+        <div className="p-3.5 rounded-2xl bg-pink-50/60 border border-pink-100 text-xs text-slate-600 space-y-2 animate-in fade-in duration-150">
           <p className="font-bold text-pink-800">How Automatic Detection Works:</p>
           <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600">
             <li>When you receive an M-Pesa SMS on your phone, copy the message text.</li>
-            <li>Switch to or open this Budget app in your browser.</li>
+            <li>Switch to or open this Budget app in your browser or installed PWA.</li>
             <li>The app automatically recognizes the M-Pesa confirmation and pops up the classification modal!</li>
             <li>Tap your preferred category and confirm — it's recorded instantly into your offline database.</li>
           </ol>
+          {onOpenPhoneModal && (
+            <div className="pt-1 border-t border-pink-200/50 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-medium">Want to test this directly on your smartphone?</span>
+              <button
+                type="button"
+                onClick={onOpenPhoneModal}
+                className="text-[11px] font-bold text-pink-600 hover:text-pink-700 flex items-center space-x-1"
+              >
+                <Smartphone className="w-3 h-3" />
+                <span>Phone install guide &rarr;</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

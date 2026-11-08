@@ -5,7 +5,8 @@ import {
   Target, 
   Lightbulb, 
   Settings, 
-  Plus 
+  Plus,
+  Smartphone
 } from 'lucide-react';
 
 export type ActiveTab = 'dashboard' | 'transactions' | 'budgets' | 'insights' | 'settings';
@@ -14,12 +15,14 @@ interface NavbarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAddModal: () => void;
+  onOpenPhoneModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   onOpenAddModal,
+  onOpenPhoneModal,
 }) => {
   const navItems = [
     { id: 'dashboard' as ActiveTab, label: 'Overview', icon: LayoutDashboard },
@@ -80,6 +83,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center space-x-2">
+              {onOpenPhoneModal && (
+                <button
+                  onClick={onOpenPhoneModal}
+                  className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold border border-pink-200 transition"
+                  title="Install or Open on Mobile Phone"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Phone App</span>
+                </button>
+              )}
+
               {/* Add Transaction Button */}
               <button
                 onClick={onOpenAddModal}

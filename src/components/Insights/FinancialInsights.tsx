@@ -5,31 +5,37 @@ import {
   CheckCircle2, 
   Receipt, 
   Zap, 
-  Sparkles
+  Sparkles,
+  Calendar,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { BudgetHealthReport, Category, Transaction } from '../../types';
 import { calculateFinancialHealth } from '../../utils/insights';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatMonthName, getPreviousMonth, getNextMonth, getCategoryBudget } from '../../utils/formatters';
 
 interface FinancialInsightsProps {
   transactions: Transaction[];
   categories: Category[];
   overallBudget?: number;
   selectedMonth?: string;
+  onSelectMonth?: (month: string) => void;
 }
 
 export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
   transactions,
   categories,
   overallBudget = 0,
-  selectedMonth
+  selectedMonth,
+  onSelectMonth
 }) => {
+  const currentMonth = selectedMonth || new Date().toISOString().slice(0, 7);
   const categoryBudgetSum = categories
     .filter(c => c.type === 'expense')
-    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+    .reduce((sum, c) => sum + getCategoryBudget(c, currentMonth), 0);
   const activeBudget = overallBudget > 0 ? overallBudget : categoryBudgetSum;
 
-  const report: BudgetHealthReport = calculateFinancialHealth(transactions, categories, selectedMonth, activeBudget);
+  const report: BudgetHealthReport = calculateFinancialHealth(transactions, categories, currentMonth, activeBudget);
 
   const needsSpend = report.topExpenseCategories
     .filter(c => ['cat_groceries', 'cat_utilities', 'cat_transport', 'cat_health', 'cat_family'].includes(c.category.id))
@@ -51,6 +57,52 @@ export const FinancialInsights: React.FC<FinancialInsightsProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Month Selection Bar */}
+      <div className="bg-white border border-pink-100 rounded-3xl px-5 py-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center space-x-3">
+          <div className="w-9 h-9 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Insights Period</span>
+            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+              {formatMonthName(currentMonth)}
+            </h3>
+          </div>
+        </div>
+
+        {onSelectMonth && (
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => onSelectMonth(getPreviousMonth(currentMonth))}
+              className="px-3 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold transition flex items-center space-x-1"
+              title="Previous Month"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Prev Month</span>
+            </button>
+
+            {currentMonth !== new Date().toISOString().slice(0, 7) && (
+              <button
+                onClick={() => onSelectMonth(new Date().toISOString().slice(0, 7))}
+                className="px-3 py-1.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold transition shadow-sm"
+              >
+                Current Month
+              </button>
+            )}
+
+            <button
+              onClick={() => onSelectMonth(getNextMonth(currentMonth))}
+              className="px-3 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold transition flex items-center space-x-1"
+              title="Next Month"
+            >
+              <span className="hidden sm:inline">Next Month</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Top Banner */}
       <div className="bg-white border border-pink-100 rounded-3xl p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">

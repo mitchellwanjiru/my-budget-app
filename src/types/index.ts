@@ -25,7 +25,8 @@ export interface Category {
   icon: string; // Lucide icon name
   color: string; // Tailwind color class or hex
   type: 'expense' | 'income';
-  budgetMonthly?: number; // Monthly budget limit in currency
+  budgetMonthly?: number; // Base/default monthly budget limit in currency
+  monthlyBudgets?: Record<string, number>; // Month-specific budgets e.g. { '2026-10': 15000, '2026-11': 20000 }
   isDefault?: boolean;
 }
 

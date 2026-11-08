@@ -15,7 +15,9 @@ export const PhoneInstallModal: React.FC<PhoneInstallModalProps> = ({
   const [copied, setCopied] = React.useState(false);
   if (!isOpen) return null;
 
-  const url = `http://${localIp || '192.168.1.23'}:5173`;
+  const url = typeof window !== 'undefined' && window.location.origin.startsWith('http')
+    ? window.location.origin
+    : `http://${localIp || '192.168.1.23'}:5173`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url);
@@ -26,7 +28,7 @@ export const PhoneInstallModal: React.FC<PhoneInstallModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-pink-950/40 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="bg-white border-2 border-pink-200 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between pb-2 border-b border-pink-100">
           <div className="flex items-center space-x-2.5">

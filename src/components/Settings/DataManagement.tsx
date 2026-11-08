@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { 
-  Download, 
-  Upload, 
-  FileSpreadsheet, 
-  Trash2, 
-  ShieldCheck, 
-  CheckCircle2, 
+import {
+  Download,
+  Upload,
+  FileSpreadsheet,
+  Trash2,
+  ShieldCheck,
+  CheckCircle2,
   Plus,
   Copy,
   Share2,
   Check,
   X,
-  FileText
+  FileText,
+  Smartphone
 } from 'lucide-react';
 import { CategorizationRule, Category } from '../../types';
 import { db } from '../../db';
@@ -25,6 +26,7 @@ interface DataManagementProps {
   onClearAllData: () => void;
   onAddRule: (rule: CategorizationRule) => void;
   onDeleteRule: (id: string) => void;
+  onOpenPhoneModal?: () => void;
 }
 
 export const DataManagement: React.FC<DataManagementProps> = ({
@@ -35,7 +37,8 @@ export const DataManagement: React.FC<DataManagementProps> = ({
   onExportCSV,
   onClearAllData,
   onAddRule,
-  onDeleteRule
+  onDeleteRule,
+  onOpenPhoneModal
 }) => {
   const [newKeyword, setNewKeyword] = useState('');
   const [newCatId, setNewCatId] = useState(categories[0]?.id || 'cat_groceries');
@@ -65,7 +68,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
             title: `MyBudget_Backup_${new Date().toISOString().split('T')[0]}`,
             text: json
           });
-        } catch (ignored) {}
+        } catch (ignored) { }
       }
     } catch (err) {
       console.error('Failed to export backup', err);
@@ -89,7 +92,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
           title: `MyBudget_Backup_${new Date().toISOString().split('T')[0]}`,
           text: backupText
         });
-      } catch (ignored) {}
+      } catch (ignored) { }
     } else {
       handleCopyBackup();
     }
@@ -171,9 +174,8 @@ export const DataManagement: React.FC<DataManagementProps> = ({
       </div>
 
       {statusMsg && (
-        <div className={`p-4 rounded-2xl flex items-center space-x-2 text-xs sm:text-sm font-bold border ${
-          statusMsg.type === 'success' ? 'bg-pink-50 border-pink-200 text-pink-700' : 'bg-rose-50 border-rose-200 text-rose-700'
-        }`}>
+        <div className={`p-4 rounded-2xl flex items-center space-x-2 text-xs sm:text-sm font-bold border ${statusMsg.type === 'success' ? 'bg-pink-50 border-pink-200 text-pink-700' : 'bg-rose-50 border-rose-200 text-rose-700'
+          }`}>
           <CheckCircle2 className="w-4 h-4" />
           <span>{statusMsg.text}</span>
         </div>
@@ -186,7 +188,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
           Export your transactions anytime or create a full JSON database backup.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-1">
           {/* Export JSON / Backup */}
           <button
             onClick={handleOpenExport}
@@ -215,6 +217,16 @@ export const DataManagement: React.FC<DataManagementProps> = ({
             <FileSpreadsheet className="w-6 h-6 text-pink-500 mb-2 group-hover:scale-110 transition" />
             <span className="text-xs font-bold text-slate-900">Export CSV</span>
             <span className="text-[10px] text-slate-400 mt-0.5">Excel / Sheets compatible</span>
+          </button>
+
+          {/* Phone Install */}
+          <button
+            onClick={onOpenPhoneModal}
+            className="p-4 rounded-2xl bg-pink-50/50 border border-pink-100 hover:border-pink-200 hover:bg-pink-50 flex flex-col items-center justify-center text-center group transition"
+          >
+            <Smartphone className="w-6 h-6 text-pink-500 mb-2 group-hover:scale-110 transition" />
+            <span className="text-xs font-bold text-slate-900">Install on Phone</span>
+            <span className="text-[10px] text-slate-400 mt-0.5">Mobile setup guide</span>
           </button>
         </div>
 

@@ -1,4 +1,5 @@
 import { Transaction, Category, BudgetHealthReport } from '../types';
+import { getCategoryBudget } from './formatters';
 
 export function calculateFinancialHealth(
   transactions: Transaction[],
@@ -26,14 +27,18 @@ export function calculateFinancialHealth(
     }
     if (t.fee && t.fee > 0) {
       totalFees += t.fee;
-      // Also track fees under cat_fees if not already
     }
   }
 
-  // Baseline budget + any extra income received this month = Total funds available
-  const effectiveIncome = baselineBudget > 0 ? baselineBudget + totalIncome : totalIncome;
-  const netSavings = effectiveIncome - totalExpense;
-  const savingsRate = effectiveIncome > 0 ? Math.max(0, Math.round((netSavings / effectiveIncome) * 100)) : 0;
+  // Determine effective fund pool and real net savings
+  // If user recorded income transactions, net savings is genuine savings (income - spending).
+  // If user only sets a budget target and records expenses, net savings reflects remaining unspent budget.
+  const hasRecordedIncome = totalIncome > 0;
+  const effectiveFunds = hasRecordedIncome ? totalIncome : baselineBudget;
+  const netSavings = hasRecordedIncome 
+    ? totalIncome - totalExpense 
+    : (baselineBudget > 0 ? baselineBudget - totalExpense : 0);
+  const savingsRate = effectiveFunds > 0 ? Math.max(0, Math.round((netSavings / effectiveFunds) * 100)) : 0;
 
   // Category breakdown
   const categoryMap = new Map(categories.map(c => [c.id, c]));
@@ -51,28 +56,29 @@ export function calculateFinancialHealth(
     })
     .sort((a, b) => b.amount - a.amount);
 
-  // Budget Alerts
+  // Budget Alerts (evaluated using the specific month's category budget)
   const budgetAlerts = categories
-    .filter(c => c.type === 'expense' && c.budgetMonthly && c.budgetMonthly > 0)
+    .filter(c => c.type === 'expense')
     .map(c => {
+      const budget = getCategoryBudget(c, selectedMonth);
       const spent = categorySpendMap.get(c.id) || 0;
-      const budget = c.budgetMonthly!;
-      const percentage = Math.round((spent / budget) * 100);
+      const percentage = budget > 0 ? Math.round((spent / budget) * 100) : 0;
       return {
         category: c,
         spent,
         budget,
         percentage,
-        isOver: spent > budget
+        isOver: budget > 0 && spent > budget
       };
     })
+    .filter(b => b.budget > 0)
     .sort((a, b) => b.percentage - a.percentage);
 
   // Insights Engine
   const insights: BudgetHealthReport['insights'] = [];
 
   // 1. Savings Rate Analysis
-  const fundsToEvaluate = effectiveIncome > 0 ? effectiveIncome : totalIncome;
+  const fundsToEvaluate = effectiveFunds;
   if (fundsToEvaluate > 0) {
     if (savingsRate >= 20) {
       insights.push({
@@ -164,7 +170,7 @@ export function calculateFinancialHealth(
 
   return {
     totalIncome, // Pure actual inflows/income received in this period
-    totalAvailableFunds: effectiveIncome, // Baseline budget + actual inflows
+    totalAvailableFunds: effectiveFunds, // Effective monthly budget pool
     totalExpense,
     totalFees,
     netSavings,

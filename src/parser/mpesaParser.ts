@@ -17,8 +17,8 @@ export function extractAmount(text: string): number | null {
  * Parses date string in DD/MM/YY or DD/MM/YYYY into YYYY-MM-DD
  */
 export function normalizeDate(dateStr: string): string {
-  // Try DD/MM/YY or DD/MM/YYYY
-  const slashMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  // Try DD/MM/YY or DD/MM/YYYY with slash, dash, or dot
+  const slashMatch = dateStr.match(/^(\d{1,2})[/\.-](\d{1,2})[/\.-](\d{2,4})$/);
   if (slashMatch) {
     const day = slashMatch[1].padStart(2, '0');
     const month = slashMatch[2].padStart(2, '0');
@@ -156,7 +156,7 @@ export function parseMpesaMessage(
 
   // 5. Detect Transaction Pattern:
   // Pattern A: "paid to <MERCHANT>." (Buy Goods / Till)
-  const paidToMatch = trimmed.match(/(?:Ksh|KES)\s*([0-9,.]+)\s+paid\s+to\s+([^.]+?)(?:\.\s+on|\s+on|\.\s+New|\s+New)/i);
+  const paidToMatch = trimmed.match(/(?:Ksh|KES)\s*([0-9,.]+)\s+paid\s+to\s+(.+?)(?:\.\s+on|\s+on\s+\d|\.\s+New|\s+New)/i);
   if (paidToMatch) {
     const amount = parseFloat(paidToMatch[1].replace(/,/g, ''));
     const party = paidToMatch[2].trim().replace(/\.$/, '');
@@ -279,7 +279,7 @@ export function parseMpesaMessage(
   }
 
   // Pattern F: "Withdraw <AMOUNT> from <AGENT>" (Agent Withdrawal)
-  const withdrawMatch = trimmed.match(/Withdraw\s+(?:Ksh|KES)\s*([0-9,.]+)\s+from\s+([^.]+?)(?:\.\s+on|\s+on|\.\s+New|\s+New)/i);
+  const withdrawMatch = trimmed.match(/Withdraw\s+(?:Ksh|KES)\s*([0-9,.]+)\s+from\s+(.+?)(?:\.\s+on|\s+on\s+\d|\.\s+New|\s+New)/i);
   if (withdrawMatch) {
     const amount = parseFloat(withdrawMatch[1].replace(/,/g, ''));
     const agent = withdrawMatch[2].trim();

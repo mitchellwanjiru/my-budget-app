@@ -7,10 +7,14 @@ import {
   Trash2, 
   PlusCircle,
   X,
-  Sparkles
+  Sparkles,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Copy
 } from 'lucide-react';
 import { Category, SavingsGoal, Transaction } from '../../types';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency, formatDate, formatMonthName, getPreviousMonth, getNextMonth, getCategoryBudget } from '../../utils/formatters';
 
 interface BudgetsAndGoalsProps {
   categories: Category[];
@@ -18,7 +22,8 @@ interface BudgetsAndGoalsProps {
   savingsGoals: SavingsGoal[];
   overallBudget?: number;
   selectedMonth?: string;
-  onUpdateOverallBudget?: (amount: number) => void;
+  onSelectMonth?: (month: string) => void;
+  onUpdateOverallBudget?: (amount: number, month?: string) => void;
   onSaveCategory: (cat: Category) => void;
   onSaveGoal: (goal: SavingsGoal) => void;
   onDeleteGoal: (id: string) => void;
@@ -31,6 +36,7 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   savingsGoals,
   overallBudget = 0,
   selectedMonth,
+  onSelectMonth,
   onUpdateOverallBudget,
   onSaveCategory,
   onSaveGoal,
@@ -68,7 +74,7 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   }
 
   const expenseCategories = categories.filter(c => c.type === 'expense');
-  const totalBudgeted = expenseCategories.reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+  const totalBudgeted = expenseCategories.reduce((sum, c) => sum + getCategoryBudget(c, currentMonthStr), 0);
   const totalSpent = expenseCategories.reduce((sum, c) => sum + (categorySpendMap.get(c.id) || 0), 0);
   const remainingBudget = Math.max(0, totalBudgeted - totalSpent);
 
@@ -81,15 +87,15 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
 
   const needsAllocated = expenseCategories
     .filter(c => needsIds.has(c.id))
-    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+    .reduce((sum, c) => sum + getCategoryBudget(c, currentMonthStr), 0);
 
   const wantsAllocated = expenseCategories
     .filter(c => wantsIds.has(c.id))
-    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+    .reduce((sum, c) => sum + getCategoryBudget(c, currentMonthStr), 0);
 
   const savingsAllocated = expenseCategories
     .filter(c => savingsIds.has(c.id))
-    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
+    .reduce((sum, c) => sum + getCategoryBudget(c, currentMonthStr), 0);
 
   const targetNeeds = effectiveOverallBudget > 0 ? Math.round(effectiveOverallBudget * 0.5) : 0;
   const targetWants = effectiveOverallBudget > 0 ? Math.round(effectiveOverallBudget * 0.3) : 0;
@@ -99,16 +105,21 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
 
   const handleStartEdit = (cat: Category) => {
     setEditingCategory(cat);
-    setNewBudgetVal(cat.budgetMonthly?.toString() || '0');
+    setNewBudgetVal(getCategoryBudget(cat, currentMonthStr).toString());
   };
 
   const handleSaveBudget = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategory) return;
     const budgetVal = parseFloat(newBudgetVal);
+    const validAmount = isNaN(budgetVal) ? 0 : Math.max(0, budgetVal);
     onSaveCategory({
       ...editingCategory,
-      budgetMonthly: isNaN(budgetVal) ? 0 : Math.max(0, budgetVal)
+      // Maintain month-specific budget so it never updates other months
+      monthlyBudgets: {
+        ...(editingCategory.monthlyBudgets || {}),
+        [currentMonthStr]: validAmount
+      }
     });
     setEditingCategory(null);
   };
@@ -118,16 +129,37 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
     const val = parseFloat(salaryInput);
     if (!isNaN(val) && val >= 0) {
       if (onUpdateOverallBudget) {
-        onUpdateOverallBudget(val);
+        onUpdateOverallBudget(val, currentMonthStr);
       }
       setIsEditingSalary(false);
+    }
+  };
+
+  const handleCopyFromPreviousMonth = () => {
+    const prevMonth = getPreviousMonth(currentMonthStr);
+    const isConfirmed = window.confirm(
+      `Copy category limits from ${formatMonthName(prevMonth)} into ${formatMonthName(currentMonthStr)}?`
+    );
+    if (!isConfirmed) return;
+
+    for (const cat of expenseCategories) {
+      const prevLimit = getCategoryBudget(cat, prevMonth);
+      if (prevLimit > 0) {
+        onSaveCategory({
+          ...cat,
+          monthlyBudgets: {
+            ...(cat.monthlyBudgets || {}),
+            [currentMonthStr]: prevLimit
+          }
+        });
+      }
     }
   };
 
   const handleAutoDistribute503020 = () => {
     if (effectiveOverallBudget <= 0) return;
     const isConfirmed = window.confirm(
-      `Auto-calculate 50/30/20 category limits based on Ksh ${effectiveOverallBudget.toLocaleString()}? You can still edit any category limit individually.`
+      `Auto-calculate 50/30/20 category limits for ${formatMonthName(currentMonthStr)} based on Ksh ${effectiveOverallBudget.toLocaleString()}? Other months will not be affected.`
     );
     if (!isConfirmed) return;
 
@@ -152,7 +184,10 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
       const calculated = Math.round(effectiveOverallBudget * pct);
       onSaveCategory({
         ...cat,
-        budgetMonthly: calculated
+        monthlyBudgets: {
+          ...(cat.monthlyBudgets || {}),
+          [currentMonthStr]: calculated
+        }
       });
     }
   };
@@ -226,6 +261,64 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
       {/* SECTION 1: CATEGORY BUDGETS */}
       {activeSection === 'budgets' && (
         <div className="space-y-6">
+          {/* Month Navigation Bar for Budgets */}
+          <div className="bg-white border border-pink-100 rounded-3xl px-5 py-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Managing Budgets For</span>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                  {formatMonthName(currentMonthStr)}
+                </h3>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {onSelectMonth && (
+                <>
+                  <button
+                    onClick={() => onSelectMonth(getPreviousMonth(currentMonthStr))}
+                    className="px-3 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold transition flex items-center space-x-1"
+                    title="Previous Month"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Prev Month</span>
+                  </button>
+
+                  {currentMonthStr !== new Date().toISOString().slice(0, 7) && (
+                    <button
+                      onClick={() => onSelectMonth(new Date().toISOString().slice(0, 7))}
+                      className="px-3 py-1.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold transition shadow-sm"
+                    >
+                      Current Month
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => onSelectMonth(getNextMonth(currentMonthStr))}
+                    className="px-3 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold transition flex items-center space-x-1"
+                    title="Next Month"
+                  >
+                    <span className="hidden sm:inline">Next Month</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={handleCopyFromPreviousMonth}
+                className="px-3 py-1.5 rounded-2xl bg-white border border-pink-200 hover:bg-pink-50 text-pink-600 text-xs font-bold transition flex items-center space-x-1.5 shadow-xs"
+                title="Copy category limits from previous month"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Copy Prev Limits</span>
+              </button>
+            </div>
+          </div>
+
           {/* Budget Overview Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white border border-pink-100 rounded-3xl p-5 shadow-sm">
@@ -433,7 +526,7 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {expenseCategories.map((cat) => {
                 const spent = categorySpendMap.get(cat.id) || 0;
-                const budget = cat.budgetMonthly || 0;
+                const budget = getCategoryBudget(cat, currentMonthStr);
                 const percent = budget > 0 ? Math.round((spent / budget) * 100) : 0;
                 const isOver = budget > 0 && spent > budget;
 

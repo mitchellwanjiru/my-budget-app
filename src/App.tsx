@@ -11,8 +11,7 @@ import {
 import { calculateFinancialHealth } from './utils/insights';
 import { checkClipboardForMpesa } from './utils/clipboardDetector';
 import { parseMpesaMessage } from './parser/mpesaParser';
-import { formatMonthName, getPreviousMonth, getNextMonth } from './utils/formatters';
-
+import { formatMonthName, getPreviousMonth, getNextMonth, getCategoryBudget } from './utils/formatters';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { MainBudgetCard } from './components/Dashboard/MainBudgetCard';
 import { StatCards } from './components/Dashboard/StatCards';
@@ -36,6 +35,10 @@ export const App: React.FC = () => {
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [rules, setRules] = useState<CategorizationRule[]>([]);
   const [overallBudget, setOverallBudget] = useState<number>(0);
+  const [monthlyBudgets, setMonthlyBudgets] = useState<Record<string, number>>({});
+
+  const currentMonthStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => currentMonthStr);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
@@ -47,18 +50,20 @@ export const App: React.FC = () => {
   // Load data from offline IndexedDB
   const loadData = useCallback(async () => {
     try {
-      const [txList, catList, goalsList, rulesList, budgetVal] = await Promise.all([
+      const [txList, catList, goalsList, rulesList, allMonthlyBudgets, fallbackBudget] = await Promise.all([
         db.getTransactions(),
         db.getCategories(),
         db.getSavingsGoals(),
         db.getRules(),
+        db.getAllMonthlyBudgets(),
         db.getOverallMonthlyBudget()
       ]);
       setTransactions(txList);
       setCategories(catList);
       setSavingsGoals(goalsList);
       setRules(rulesList);
-      setOverallBudget(budgetVal);
+      setMonthlyBudgets(allMonthlyBudgets);
+      setOverallBudget(fallbackBudget);
     } catch (err) {
       console.error('Failed to load local DB data', err);
     } finally {
@@ -140,10 +145,14 @@ export const App: React.FC = () => {
     };
   }, [triggerClipboardCheck, rules, categories]);
 
-  // Handlers for budget and transactions
-  const handleUpdateOverallBudget = async (newBudget: number) => {
-    await db.setOverallMonthlyBudget(newBudget);
-    setOverallBudget(newBudget);
+  // Handlers for month-specific budget and transactions
+  const handleUpdateOverallBudget = async (newBudget: number, monthStr?: string) => {
+    const targetMonth = monthStr || selectedMonth;
+    await db.setMonthlyBudget(targetMonth, newBudget);
+    setMonthlyBudgets(prev => ({ ...prev, [targetMonth]: newBudget }));
+    if (targetMonth === selectedMonth) {
+      setOverallBudget(newBudget);
+    }
   };
 
   const handleAddTransaction = async (newTx: Transaction) => {
@@ -284,13 +293,18 @@ export const App: React.FC = () => {
     await loadData();
   };
 
+  // Month-specific budget resolution:
+  // If user set a budget specifically for this month, use it.
+  // Otherwise, fallback to sum of category budgets for this month or overall default.
+  const currentMonthBudget = monthlyBudgets[selectedMonth] !== undefined 
+    ? monthlyBudgets[selectedMonth] 
+    : (overallBudget > 0 ? overallBudget : 0);
+
   const categoryBudgetSum = categories
     .filter(c => c.type === 'expense')
-    .reduce((sum, c) => sum + (c.budgetMonthly || 0), 0);
-  const activeBudget = overallBudget > 0 ? overallBudget : categoryBudgetSum;
+    .reduce((sum, c) => sum + getCategoryBudget(c, selectedMonth), 0);
 
-  const currentMonthStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => currentMonthStr);
+  const activeBudget = currentMonthBudget > 0 ? currentMonthBudget : categoryBudgetSum;
 
   const report = calculateFinancialHealth(transactions, categories, selectedMonth, activeBudget);
 
@@ -317,6 +331,7 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAddModal={() => setIsAddModalOpen(true)}
+        onOpenPhoneModal={() => setIsPhoneModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -371,10 +386,11 @@ export const App: React.FC = () => {
 
             {/* Front & Center: My Monthly Budget Card */}
             <MainBudgetCard
-              overallBudget={overallBudget}
+              overallBudget={currentMonthBudget}
               totalIncome={report.totalIncome}
               totalSpent={report.totalExpense}
-              onUpdateBudget={handleUpdateOverallBudget}
+              selectedMonth={selectedMonth}
+              onUpdateBudget={(val) => handleUpdateOverallBudget(val, selectedMonth)}
               onQuickPaste={handleManualQuickParse}
             />
 
@@ -396,7 +412,7 @@ export const App: React.FC = () => {
                 />
               </div>
               <div className="lg:col-span-6">
-                <CashflowChart transactions={transactions} />
+                <CashflowChart transactions={transactions} selectedMonth={selectedMonth} />
               </div>
             </div>
 
@@ -425,6 +441,7 @@ export const App: React.FC = () => {
             savingsGoals={savingsGoals}
             overallBudget={activeBudget}
             selectedMonth={selectedMonth}
+            onSelectMonth={(m) => setSelectedMonth(m)}
             onUpdateOverallBudget={handleUpdateOverallBudget}
             onSaveCategory={handleSaveCategory}
             onSaveGoal={handleSaveGoal}
@@ -439,6 +456,7 @@ export const App: React.FC = () => {
             categories={categories}
             overallBudget={activeBudget}
             selectedMonth={selectedMonth}
+            onSelectMonth={(m) => setSelectedMonth(m)}
           />
         )}
 
@@ -452,6 +470,7 @@ export const App: React.FC = () => {
             onClearAllData={handleClearAllData}
             onAddRule={handleAddRule}
             onDeleteRule={handleDeleteRule}
+            onOpenPhoneModal={() => setIsPhoneModalOpen(true)}
           />
         )}
       </main>

@@ -71,7 +71,7 @@ class BudgetDB {
     };
   }
 
-  // --- Overall Monthly Budget Setting ---
+  // --- Overall & Month-Specific Monthly Budget Settings ---
   async getOverallMonthlyBudget(): Promise<number> {
     const db = await this.dbPromise;
     return new Promise((resolve) => {
@@ -100,6 +100,97 @@ class BudgetDB {
       const req = store.put({ key: 'overall_monthly_budget', value: amount });
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Returns the budget for a specific month (YYYY-MM).
+   * Checks setting `budget_YYYY-MM`. If not set, falls back to overall_monthly_budget.
+   */
+  async getMonthlyBudget(monthStr: string): Promise<number> {
+    const db = await this.dbPromise;
+    return new Promise((resolve) => {
+      const tx = db.transaction('settings', 'readonly');
+      const store = tx.objectStore('settings');
+      const req = store.get(`budget_${monthStr}`);
+      req.onsuccess = () => {
+        if (req.result && typeof req.result.value === 'number') {
+          resolve(req.result.value);
+          return;
+        }
+        // Check month-specific localStorage fallback
+        const localMonth = localStorage.getItem(`my_monthly_budget_${monthStr}`);
+        if (localMonth !== null && localMonth !== undefined) {
+          const val = parseFloat(localMonth);
+          if (!isNaN(val)) {
+            resolve(val);
+            return;
+          }
+        }
+        // Fallback to overall monthly budget
+        const legReq = store.get('overall_monthly_budget');
+        legReq.onsuccess = () => {
+          if (legReq.result && typeof legReq.result.value === 'number') {
+            resolve(legReq.result.value);
+          } else {
+            const localVal = localStorage.getItem('my_monthly_budget');
+            resolve(localVal ? parseFloat(localVal) || 0 : 0);
+          }
+        };
+        legReq.onerror = () => resolve(0);
+      };
+      req.onerror = () => resolve(0);
+    });
+  }
+
+  /**
+   * Sets the budget specifically for a given month (YYYY-MM)
+   * so it does not affect any other month.
+   */
+  async setMonthlyBudget(monthStr: string, amount: number): Promise<void> {
+    localStorage.setItem(`my_monthly_budget_${monthStr}`, amount.toString());
+    const db = await this.dbPromise;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      const store = tx.objectStore('settings');
+      const req = store.put({ key: `budget_${monthStr}`, value: amount });
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Retrieves all month-specific budgets stored as `budget_YYYY-MM`.
+   */
+  async getAllMonthlyBudgets(): Promise<Record<string, number>> {
+    const db = await this.dbPromise;
+    return new Promise((resolve) => {
+      const tx = db.transaction('settings', 'readonly');
+      const store = tx.objectStore('settings');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const result: Record<string, number> = {};
+        const items = req.result || [];
+        for (const item of items) {
+          if (item && item.key && typeof item.key === 'string' && item.key.startsWith('budget_') && typeof item.value === 'number') {
+            const m = item.key.replace('budget_', '');
+            result[m] = item.value;
+          }
+        }
+        // Also check localStorage keys
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('my_monthly_budget_')) {
+            const m = key.replace('my_monthly_budget_', '');
+            if (result[m] === undefined) {
+              const val = parseFloat(localStorage.getItem(key) || '0');
+              if (!isNaN(val)) result[m] = val;
+            }
+          }
+        }
+        resolve(result);
+      };
+      req.onerror = () => resolve({});
     });
   }
 
@@ -254,9 +345,30 @@ class BudgetDB {
     return new Promise((resolve, reject) => {
       const tx = db.transaction('rules', 'readwrite');
       const store = tx.objectStore('rules');
-      const req = store.put(rule);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      const index = store.index('by_keyword');
+      const req = index.get(rule.keyword);
+      req.onsuccess = () => {
+        if (req.result) {
+          // Update existing rule to prevent duplicate rules for the same keyword
+          const updated = {
+            ...req.result,
+            categoryId: rule.categoryId,
+            matchField: rule.matchField
+          };
+          const putReq = store.put(updated);
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        } else {
+          const putReq = store.put(rule);
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        }
+      };
+      req.onerror = () => {
+        const putReq = store.put(rule);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = () => reject(putReq.error);
+      };
     });
   }
 
@@ -274,12 +386,13 @@ class BudgetDB {
   // --- Backup & Restore ---
 
   async exportAllData(): Promise<string> {
-    const [transactions, categories, savingsGoals, rules, overallBudget] = await Promise.all([
+    const [transactions, categories, savingsGoals, rules, overallBudget, monthlyBudgets] = await Promise.all([
       this.getTransactions(),
       this.getCategories(),
       this.getSavingsGoals(),
       this.getRules(),
-      this.getOverallMonthlyBudget()
+      this.getOverallMonthlyBudget(),
+      this.getAllMonthlyBudgets()
     ]);
 
     const backup = {
@@ -287,6 +400,7 @@ class BudgetDB {
       exportedAt: new Date().toISOString(),
       appName: 'MyBudget',
       overallBudget,
+      monthlyBudgets,
       data: {
         transactions,
         categories,
@@ -305,6 +419,14 @@ class BudgetDB {
 
       if (parsed.overallBudget !== undefined) {
         await this.setOverallMonthlyBudget(parsed.overallBudget);
+      }
+
+      if (parsed.monthlyBudgets && typeof parsed.monthlyBudgets === 'object') {
+        for (const [monthKey, amt] of Object.entries(parsed.monthlyBudgets)) {
+          if (typeof amt === 'number') {
+            await this.setMonthlyBudget(monthKey, amt);
+          }
+        }
       }
 
       const db = await this.dbPromise;
@@ -339,6 +461,16 @@ class BudgetDB {
 
   async clearAllData(): Promise<void> {
     localStorage.removeItem('my_monthly_budget');
+    // Clear all monthly budget keys from localStorage
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('my_monthly_budget')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
     const db = await this.dbPromise;
     return new Promise((resolve, reject) => {
       const tx = db.transaction(['transactions', 'categories', 'savingsGoals', 'rules', 'settings'], 'readwrite');

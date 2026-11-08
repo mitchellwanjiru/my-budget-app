@@ -5,11 +5,18 @@ import { BarChart3 } from 'lucide-react';
 
 interface CashflowChartProps {
   transactions: Transaction[];
+  selectedMonth?: string;
 }
 
-export const CashflowChart: React.FC<CashflowChartProps> = ({ transactions }) => {
+export const CashflowChart: React.FC<CashflowChartProps> = ({ transactions, selectedMonth }) => {
   const daysMap = new Map<string, { income: number; expense: number }>();
-  const sortedTx = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  
+  // Filter for selected month if provided
+  const relevantTx = selectedMonth 
+    ? transactions.filter(t => t.date.startsWith(selectedMonth))
+    : transactions;
+
+  const sortedTx = [...relevantTx].sort((a, b) => a.date.localeCompare(b.date));
   
   for (const t of sortedTx) {
     if (!daysMap.has(t.date)) {

@@ -72,3 +72,15 @@ export function getNextMonth(monthStr: string): string {
   }
 }
 
+/**
+ * Returns the budget limit for a specific category in a given month (YYYY-MM).
+ * If a month-specific limit is set, returns that; otherwise falls back to the base budgetMonthly.
+ */
+export function getCategoryBudget(category: { budgetMonthly?: number; monthlyBudgets?: Record<string, number> }, monthStr?: string): number {
+  if (monthStr && category.monthlyBudgets && category.monthlyBudgets[monthStr] !== undefined) {
+    return category.monthlyBudgets[monthStr];
+  }
+  return category.budgetMonthly || 0;
+}
+
+
