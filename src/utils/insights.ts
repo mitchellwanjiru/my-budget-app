@@ -30,14 +30,9 @@ export function calculateFinancialHealth(
     }
   }
 
-  // Determine effective fund pool and real net savings
-  // If user recorded income transactions, net savings is genuine savings (income - spending).
-  // If user only sets a budget target and records expenses, net savings reflects remaining unspent budget.
-  const hasRecordedIncome = totalIncome > 0;
-  const effectiveFunds = hasRecordedIncome ? totalIncome : baselineBudget;
-  const netSavings = hasRecordedIncome 
-    ? totalIncome - totalExpense 
-    : (baselineBudget > 0 ? baselineBudget - totalExpense : 0);
+  // Baseline budget + any extra received funds/income this month = Total funds available
+  const effectiveFunds = baselineBudget > 0 ? baselineBudget + totalIncome : totalIncome;
+  const netSavings = effectiveFunds - totalExpense;
   const savingsRate = effectiveFunds > 0 ? Math.max(0, Math.round((netSavings / effectiveFunds) * 100)) : 0;
 
   // Category breakdown

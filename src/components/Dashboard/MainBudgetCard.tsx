@@ -29,7 +29,8 @@ export const MainBudgetCard: React.FC<MainBudgetCardProps> = ({
     setBudgetInput(overallBudget > 0 ? overallBudget.toString() : '');
   }, [overallBudget, selectedMonth]);
 
-  const effectiveBudget = overallBudget > 0 ? overallBudget : totalIncome;
+  const extraIncome = totalIncome > 0 ? totalIncome : 0;
+  const effectiveBudget = overallBudget > 0 ? overallBudget + extraIncome : extraIncome;
   const remaining = effectiveBudget > 0 ? effectiveBudget - totalSpent : 0;
   const percentUsed = effectiveBudget > 0 ? Math.min(100, Math.round((totalSpent / effectiveBudget) * 100)) : 0;
   const isOver = effectiveBudget > 0 && totalSpent > effectiveBudget;
@@ -160,12 +161,12 @@ export const MainBudgetCard: React.FC<MainBudgetCardProps> = ({
             <div className="p-4 rounded-2xl bg-pink-50/50 border border-pink-100 flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Monthly Budget Target
+                  {extraIncome > 0 ? 'Total Available Budget' : 'Monthly Budget Target'}
                 </span>
                 <p className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(effectiveBudget)}</p>
-                {totalIncome > 0 && (
+                {extraIncome > 0 && (
                   <p className="text-[11px] font-bold text-emerald-600 mt-0.5">
-                    Recorded income: {formatCurrency(totalIncome)}
+                    Base {formatCurrency(overallBudget)} + {formatCurrency(extraIncome)} received
                   </p>
                 )}
               </div>

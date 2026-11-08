@@ -21,6 +21,7 @@ interface BudgetsAndGoalsProps {
   transactions: Transaction[];
   savingsGoals: SavingsGoal[];
   overallBudget?: number;
+  monthlyBudgets?: Record<string, number>;
   selectedMonth?: string;
   onSelectMonth?: (month: string) => void;
   onUpdateOverallBudget?: (amount: number, month?: string) => void;
@@ -35,6 +36,7 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   transactions,
   savingsGoals,
   overallBudget = 0,
+  monthlyBudgets,
   selectedMonth,
   onSelectMonth,
   onUpdateOverallBudget,
@@ -76,9 +78,16 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
   const expenseCategories = categories.filter(c => c.type === 'expense');
   const totalBudgeted = expenseCategories.reduce((sum, c) => sum + getCategoryBudget(c, currentMonthStr), 0);
   const totalSpent = expenseCategories.reduce((sum, c) => sum + (categorySpendMap.get(c.id) || 0), 0);
-  const remainingBudget = Math.max(0, totalBudgeted - totalSpent);
 
-  const effectiveOverallBudget = overallBudget > 0 ? overallBudget : totalBudgeted;
+  // Month-specific target budget: reads directly from monthlyBudgets[currentMonthStr] if defined,
+  // otherwise overallBudget (for this month), otherwise category sum.
+  const monthSpecificBudget = (monthlyBudgets && monthlyBudgets[currentMonthStr] !== undefined)
+    ? monthlyBudgets[currentMonthStr]
+    : overallBudget;
+
+  const targetBudget = monthSpecificBudget > 0 ? monthSpecificBudget : totalBudgeted;
+  const remainingBudget = targetBudget > 0 ? targetBudget - totalSpent : 0;
+  const effectiveOverallBudget = targetBudget;
 
   // 50/30/20 Groupings
   const needsIds = new Set(['cat_groceries', 'cat_utilities', 'cat_transport', 'cat_health', 'cat_family']);
@@ -323,20 +332,30 @@ export const BudgetsAndGoals: React.FC<BudgetsAndGoalsProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white border border-pink-100 rounded-3xl p-5 shadow-sm">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Monthly Budget</span>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{formatCurrency(totalBudgeted)}</h3>
-              <p className="text-xs text-slate-400 mt-1">Across {expenseCategories.length} categories</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-2">{formatCurrency(targetBudget)}</h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {targetBudget > 0
+                  ? `${formatCurrency(totalBudgeted)} allocated across ${expenseCategories.length} categories`
+                  : `Across ${expenseCategories.length} categories`}
+              </p>
             </div>
             <div className="bg-white border border-pink-100 rounded-3xl p-5 shadow-sm">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Spent This Month</span>
               <h3 className="text-2xl font-black text-pink-600 mt-2">{formatCurrency(totalSpent)}</h3>
               <p className="text-xs text-slate-400 mt-1">
-                {totalBudgeted > 0 ? Math.round((totalSpent / totalBudgeted) * 100) : 0}% of budget used
+                {targetBudget > 0 ? Math.round((totalSpent / targetBudget) * 100) : 0}% of budget used
               </p>
             </div>
             <div className="bg-white border border-pink-100 rounded-3xl p-5 shadow-sm">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Remaining Buffer</span>
-              <h3 className="text-2xl font-black text-emerald-600 mt-2">{formatCurrency(remainingBudget)}</h3>
-              <p className="text-xs text-slate-400 mt-1">Safe to spend this month</p>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                {totalSpent > targetBudget && targetBudget > 0 ? 'Over Budget By' : 'Remaining Buffer'}
+              </span>
+              <h3 className={`text-2xl font-black mt-2 ${totalSpent > targetBudget && targetBudget > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                {formatCurrency(Math.abs(remainingBudget))}
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {totalSpent > targetBudget && targetBudget > 0 ? 'Budget exceeded' : 'Safe to spend this month'}
+              </p>
             </div>
           </div>
 

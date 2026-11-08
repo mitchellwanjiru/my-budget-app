@@ -439,7 +439,8 @@ export const App: React.FC = () => {
             categories={categories}
             transactions={transactions}
             savingsGoals={savingsGoals}
-            overallBudget={activeBudget}
+            overallBudget={currentMonthBudget > 0 ? currentMonthBudget : activeBudget}
+            monthlyBudgets={monthlyBudgets}
             selectedMonth={selectedMonth}
             onSelectMonth={(m) => setSelectedMonth(m)}
             onUpdateOverallBudget={handleUpdateOverallBudget}
