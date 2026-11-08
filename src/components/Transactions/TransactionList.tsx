@@ -1,19 +1,23 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Search, 
-  Trash2, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  ChevronDown, 
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  Search,
+  Trash2,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ChevronDown,
   ChevronUp,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Transaction, Category } from '../../types';
-import { formatCurrency, formatDate, formatMonthName } from '../../utils/formatters';
+import { formatCurrency, formatDate, formatMonthName, getPreviousMonth, getNextMonth } from '../../utils/formatters';
 
 interface TransactionListProps {
   transactions: Transaction[];
   categories: Category[];
+  selectedMonth?: string;
+  onSelectMonth?: (month: string) => void;
   onDeleteTransaction: (id: string) => void;
   onUpdateCategory: (id: string, newCategoryId: string) => void;
 }
@@ -21,14 +25,33 @@ interface TransactionListProps {
 export const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
   categories,
+  selectedMonth: propMonth,
+  onSelectMonth,
   onDeleteTransaction,
   onUpdateCategory
 }) => {
+  const currentMonthStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const activeMonth = propMonth || currentMonthStr;
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>(activeMonth);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Keep in sync when the month is changed from other screens (Dashboard, Budgets, etc.)
+  useEffect(() => {
+    if (propMonth) {
+      setSelectedMonth(propMonth);
+    }
+  }, [propMonth]);
+
+  const handleMonthChange = (newMonth: string) => {
+    setSelectedMonth(newMonth);
+    if (onSelectMonth && newMonth !== 'all') {
+      onSelectMonth(newMonth);
+    }
+  };
 
   const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
 
@@ -45,7 +68,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const query = searchQuery.toLowerCase();
-      const matchesSearch = 
+      const matchesSearch =
         !searchQuery ||
         (t.party && t.party.toLowerCase().includes(query)) ||
         (t.code && t.code.toLowerCase().includes(query)) ||
@@ -74,6 +97,64 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Month Selection Bar */}
+      <div className="bg-white border border-pink-100 rounded-3xl px-5 py-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center space-x-3">
+          <div className="w-9 h-9 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Spending For</span>
+            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+              {selectedMonth === 'all' ? 'All Months' : formatMonthName(selectedMonth)}
+            </h3>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          {selectedMonth !== 'all' && (
+            <>
+              <button
+                onClick={() => handleMonthChange(getPreviousMonth(selectedMonth))}
+                className="px-3 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold transition flex items-center space-x-1"
+                title="Previous Month"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Prev Month</span>
+              </button>
+
+              {selectedMonth !== currentMonthStr && (
+                <button
+                  onClick={() => handleMonthChange(currentMonthStr)}
+                  className="px-3 py-1.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold transition shadow-sm"
+                >
+                  Current Month
+                </button>
+              )}
+
+              <button
+                onClick={() => handleMonthChange(getNextMonth(selectedMonth))}
+                className="px-3 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold transition flex items-center space-x-1"
+                title="Next Month"
+              >
+                <span className="hidden sm:inline">Next Month</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => handleMonthChange(selectedMonth === 'all' ? activeMonth : 'all')}
+            className={`px-3 py-1.5 rounded-2xl text-xs font-bold transition border ${selectedMonth === 'all'
+                ? 'bg-pink-500 text-white border-pink-500 shadow-sm'
+                : 'bg-white hover:bg-pink-50 text-slate-600 border-slate-200'
+              }`}
+          >
+            {selectedMonth === 'all' ? 'Showing All Months' : 'View All Months'}
+          </button>
+        </div>
+      </div>
+
       {/* Search & Filter Header */}
       <div className="bg-white border border-pink-100 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
@@ -93,7 +174,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           <div className="sm:col-span-3">
             <select
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+              onChange={(e) => handleMonthChange(e.target.value)}
               className="w-full bg-pink-50/50 border border-pink-200 rounded-2xl px-3 py-2 text-xs sm:text-sm text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-pink-500"
             >
               <option value="all">All Months</option>
@@ -180,11 +261,10 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                     {/* Left: Icon & Merchant details */}
                     <div className="flex items-center space-x-3 min-w-0">
                       <div
-                        className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-                          isIncome
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${isIncome
                             ? 'bg-emerald-50 text-emerald-600'
                             : 'bg-pink-50 text-pink-500'
-                        }`}
+                          }`}
                       >
                         {isIncome ? (
                           <ArrowDownLeft className="w-5 h-5" />

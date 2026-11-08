@@ -429,6 +429,8 @@ export const App: React.FC = () => {
           <TransactionList
             transactions={transactions}
             categories={categories}
+            selectedMonth={selectedMonth}
+            onSelectMonth={(m) => setSelectedMonth(m)}
             onDeleteTransaction={handleDeleteTransaction}
             onUpdateCategory={handleUpdateCategory}
           />
